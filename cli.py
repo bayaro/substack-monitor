@@ -1,61 +1,70 @@
-
 import argparse
-import inspect
 import json
+import yaml
+import requests
 
-import api
+
+def load_config(path="config.yaml"):
+    with open(path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
 
 
-def get_api_methods():
-    return {
-        name: func
-        for name, func in inspect.getmembers(api, inspect.isfunction)
-        if not name.startswith("_")
-    }
+def do_request(account_name, method):
+    config = load_config()
+    endpoint = config[method]
+
+    url = f"https://{account_name}.substack.com/{endpoint['url']}"
+    params = endpoint.get("params", {})
+    columns = endpoint.get("columns")
+
+    if endpoint.get("pagination") == "offset":
+        limit = endpoint.get("limit", 20)
+        results = []
+        offset = 0
+        while True:
+            response = requests.get(
+                url,
+                params={**params, "limit": limit, "offset": offset},
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=30,
+            )
+            response.raise_for_status()
+            batch = response.json()
+            if not batch:
+                break
+            results.extend(batch)
+            offset += len(batch)
+            if len(batch) < limit:
+                break
+    else:
+        response = requests.get(
+            url,
+            params=params,
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        results = response.json()
+
+    if columns:
+        results = [{col: item.get(col) for col in columns} for item in results]
+
+    return results
 
 
 def main():
-    methods = get_api_methods()
-
     parser = argparse.ArgumentParser()
+    parser.add_argument("-a", "--account")
+    parser.add_argument("-m", "--method", required=True)
+    args = parser.parse_args()
 
-    parser.add_argument(
-        "method",
-        choices=methods.keys(),
-    )
+    account = args.account or load_config().get("account_name")
+    if not account:
+        parser.error("account required: pass -a or set account_name in config.yaml")
 
-    args, method_args = parser.parse_known_args()
+    result = do_request(account, args.method)
 
-    method = methods[args.method]
-    signature = inspect.signature(method)
-
-    required = [
-        param
-        for param in signature.parameters.values()
-        if param.default is inspect.Parameter.empty
-        and param.kind
-        in (
-            inspect.Parameter.POSITIONAL_ONLY,
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-        )
-    ]
-
-    if len(method_args) != len(required):
-        parser.error(
-            f"{args.method}() expects "
-            f"{len(required)} argument(s): "
-            + ", ".join(param.name for param in required)
-        )
-
-    result = method(*method_args)
-
-    print(
-        json.dumps(
-            result,
-            indent=2,
-            ensure_ascii=False,
-        )
-    )
+    print(json.dumps(result, indent=2, ensure_ascii=False))
 
 
 if __name__ == "__main__":
