@@ -1,0 +1,32 @@
+
+account_name: aatuu
+data_dir: ./data
+
+posts:
+  url: "api/v1/posts"
+  pagination: offset
+  limit: 20
+  columns:
+    - id
+    - post_date
+    - updated_at
+    - title
+    - slug
+    - canonical_url
+    - subtitle
+    - audience
+    - type
+    - is_published
+    - wordcount
+    - reactions
+    - reaction_count
+    - comment_count
+    - child_comment_count
+    - restacks
+    - section_id
+    - language
+
+users:
+  url: "api/v1/publication/users/ranked"
+  params:
+    public: true
