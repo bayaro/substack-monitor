@@ -19,6 +19,20 @@ def __request(url, params=None):
     response.raise_for_status()
     return response.json()
 
+def __filter_columns(items, columns):
+    if columns:
+        return [{col: item.get(col) for col in columns} for item in items]
+    return items
+
+
+def __collect(account, method, data_dir):
+    result = do_request(account, method)
+    output = data_dir / f"{method}.yaml"
+    with output.open("w", encoding="utf-8") as f:
+        yaml.safe_dump(result, f, allow_unicode=True, sort_keys=True, default_flow_style=False)
+    print(f"Saved {len(result)} records to {output}")
+
+
 def do_request(account_name, method):
     config = load_config()
     endpoint = config[method]
@@ -26,11 +40,6 @@ def do_request(account_name, method):
     url = f"https://{account_name}.substack.com/{endpoint['url']}"
     params = endpoint.get("params", {})
     columns = endpoint.get("columns")
-
-    def filter(items):
-        if columns:
-            return [{col: item.get(col) for col in columns} for item in items]
-        return items
 
     if endpoint.get("pagination") == "offset":
         limit = endpoint.get("limit", 20)
@@ -40,21 +49,15 @@ def do_request(account_name, method):
             batch = __request(url, params={**params, "limit": limit, "offset": offset})
             if not batch:
                 break
-            results.extend(filter(batch))
+            results.extend(__filter_columns(batch, columns))
             offset += len(batch)
             if len(batch) < limit:
                 break
     else:
-        results = filter(__request(url, params=params))
+        results = __filter_columns(__request(url, params=params), columns)
 
     return results
 
-def collect(method):
-    result = do_request(account, method)
-    output = data_dir / f"{method}.yaml"
-    with output.open("w", encoding="utf-8") as f:
-        yaml.safe_dump(result, f, allow_unicode=True, sort_keys=True, default_flow_style=False)
-    print(f"Saved {len(result)} records to {output}")
 
 def main():
     parser = argparse.ArgumentParser()
@@ -72,9 +75,9 @@ def main():
 
     if args.method == "all":
         for method in [k for k, v in config.items() if isinstance(v, dict) and "url" in v]:
-            collect(method)
+            __collect(account, method, data_dir)
     else:
-        collect(args.method)
+        __collect(account, args.method, data_dir)
 
 
 if __name__ == "__main__":
