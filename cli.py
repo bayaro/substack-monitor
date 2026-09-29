@@ -1,5 +1,6 @@
 import argparse
 import json
+from pathlib import Path
 import yaml
 import requests
 
@@ -59,9 +60,17 @@ def main():
     if not account:
         parser.error("account required: pass -a or set account_name in config.yaml")
 
+    config = load_config()
     result = do_request(account, args.method)
 
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    data_dir = Path(config["data_dir"])
+    data_dir.mkdir(parents=True, exist_ok=True)
+    output = data_dir / f"{args.method}.yaml"
+
+    with output.open("w", encoding="utf-8") as f:
+        yaml.safe_dump(result, f, allow_unicode=True, sort_keys=True, default_flow_style=False)
+
+    print(f"Saved {len(result)} records to {output}")
 
 
 if __name__ == "__main__":
