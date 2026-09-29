@@ -79,7 +79,7 @@ def __fetch(method):
     params = endpoint.get("params", {})
 
     cache_f = None
-    if CONFIG.get("cache"):
+    if CONFIG.get("cache") == "write":
         cache_dir = Path(CONFIG["cache_dir"])
         cache_dir.mkdir(parents=True, exist_ok=True)
         cache_f = (cache_dir / f"{method}.yaml").open("w", encoding="utf-8")
@@ -127,21 +127,22 @@ def __fetch(method):
     return results
 
 
-def do_request(method, source_file=None):
+def do_request(method):
     columns = CONFIG[method].get("columns")
 
-    if source_file:
-        with open(source_file, "r", encoding="utf-8") as f:
+    if CONFIG.get("cache") == "read":
+        cache_file = Path(CONFIG["cache_dir"]) / f"{method}.yaml"
+        with cache_file.open("r", encoding="utf-8") as f:
             return __filter_columns(yaml.safe_load(f), columns)
 
     return __fetch(method)
 
 
-def __collect(method, source_file=None):
+def __collect(method):
     data_dir = Path(CONFIG["data_dir"])
     data_dir.mkdir(parents=True, exist_ok=True)
     sort_key = CONFIG[method].get("sort_key")
-    result = do_request(method, source_file)
+    result = do_request(method)
     if sort_key:
         result = sorted(result, key=lambda x: x.get(sort_key), reverse=True)
     output = data_dir / f"{method}.yaml"
@@ -153,14 +154,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-a", "--account")
     parser.add_argument("-m", "--method", required=True)
-    parser.add_argument("-f", "--file")
-    parser.add_argument("--cache", action="store_true")
+    parser.add_argument("--cache", choices=["write", "read"])
     args = parser.parse_args()
 
     if args.account:
         CONFIG["account_name"] = args.account
     if args.cache:
-        CONFIG["cache"] = True
+        CONFIG["cache"] = args.cache
 
     if not CONFIG.get("account_name"):
         parser.error("account required: pass -a or set account_name in config.yaml")
@@ -169,7 +169,7 @@ def main():
         for method in [k for k, v in CONFIG.items() if isinstance(v, dict) and "url" in v]:
             __collect(method)
     else:
-        __collect(args.method, args.file)
+        __collect(args.method)
 
 
 if __name__ == "__main__":
