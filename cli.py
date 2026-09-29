@@ -45,7 +45,8 @@ def __resolve_deps(deps):
 def __collect(method):
     data_dir = Path(CONFIG["data_dir"])
     data_dir.mkdir(parents=True, exist_ok=True)
-    result = sorted(do_request(method), key=lambda x: x.get("id", 0), reverse=True)
+    sort_key = CONFIG[method].get("sort_key")
+    result = sorted(do_request(method), key=lambda x: x.get(sort_key), reverse=True) if sort_key else do_request(method)
     output = data_dir / f"{method}.yaml"
     with output.open("w", encoding="utf-8") as f:
         yaml.safe_dump(result, f, allow_unicode=True, sort_keys=True, default_flow_style=False)

@@ -10,6 +10,7 @@ posts:
   url: "api/v1/posts"
   pagination: offset
   limit: 20
+  sort_key: id
   columns:
     - id
     - post_date
@@ -32,6 +33,7 @@ posts:
 
 users:
   url: "api/v1/publication/users/ranked"
+  sort_key: id
   params:
     public: true
 
@@ -40,5 +42,6 @@ notes:
   pagination: cursor
   cursor_field: nextCursor
   items_field: items
+  sort_key: entity_key
   dependencies:
     user_id: users.[0].id
