@@ -26,7 +26,7 @@ def __filter_columns(items, columns):
 
 
 def __collect(account, method, data_dir):
-    result = do_request(account, method)
+    result = sorted(do_request(account, method), key=lambda x: x.get("id", 0), reverse=True)
     output = data_dir / f"{method}.yaml"
     with output.open("w", encoding="utf-8") as f:
         yaml.safe_dump(result, f, allow_unicode=True, sort_keys=True, default_flow_style=False)
