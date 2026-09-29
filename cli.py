@@ -49,6 +49,12 @@ def do_request(account_name, method):
 
     return results
 
+def collect(method):
+    result = do_request(account, method)
+    output = data_dir / f"{method}.yaml"
+    with output.open("w", encoding="utf-8") as f:
+        yaml.safe_dump(result, f, allow_unicode=True, sort_keys=True, default_flow_style=False)
+    print(f"Saved {len(result)} records to {output}")
 
 def main():
     parser = argparse.ArgumentParser()
@@ -61,16 +67,14 @@ def main():
         parser.error("account required: pass -a or set account_name in config.yaml")
 
     config = load_config()
-    result = do_request(account, args.method)
-
     data_dir = Path(config["data_dir"])
     data_dir.mkdir(parents=True, exist_ok=True)
-    output = data_dir / f"{args.method}.yaml"
 
-    with output.open("w", encoding="utf-8") as f:
-        yaml.safe_dump(result, f, allow_unicode=True, sort_keys=True, default_flow_style=False)
-
-    print(f"Saved {len(result)} records to {output}")
+    if args.method == "all":
+        for method in [k for k, v in config.items() if isinstance(v, dict) and "url" in v]:
+            collect(method)
+    else:
+        collect(args.method)
 
 
 if __name__ == "__main__":
