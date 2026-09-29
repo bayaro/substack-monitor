@@ -30,3 +30,10 @@ users:
   url: "api/v1/publication/users/ranked"
   params:
     public: true
+
+notes:
+  url: "https://substack.com/api/v1/reader/feed/profile/{user_id}"
+  pagination: cursor
+  cursor_field: nextCursor
+  dependencies:
+    user_id: users.[0].id

@@ -25,19 +25,42 @@ def __filter_columns(items, columns):
     return items
 
 
+def __resolve_url(url, deps, data_dir):
+    values = {}
+    for placeholder, path in deps.items():
+        parts = path.split(".")
+        source_file = data_dir / f"{parts[0]}.yaml"
+        with source_file.open("r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        for part in parts[1:]:
+            if part.startswith("[") and part.endswith("]"):
+                data = data[int(part[1:-1])]
+            else:
+                data = data[part]
+        values[placeholder] = data
+    return url.format(**values)
+
+
 def __collect(account, method, data_dir):
-    result = sorted(do_request(account, method), key=lambda x: x.get("id", 0), reverse=True)
+    result = sorted(do_request(account, method, data_dir), key=lambda x: x.get("id", 0), reverse=True)
     output = data_dir / f"{method}.yaml"
     with output.open("w", encoding="utf-8") as f:
         yaml.safe_dump(result, f, allow_unicode=True, sort_keys=True, default_flow_style=False)
     print(f"Saved {len(result)} records to {output}")
 
 
-def do_request(account_name, method):
+def do_request(account_name, method, data_dir=None):
     config = load_config()
     endpoint = config[method]
+    data_dir = data_dir or Path(config["data_dir"])
 
-    url = f"https://{account_name}.substack.com/{endpoint['url']}"
+    raw_url = endpoint["url"]
+    deps = endpoint.get("dependencies", {})
+    if deps:
+        url = __resolve_url(raw_url, deps, data_dir)
+    else:
+        url = f"https://{account_name}.substack.com/{raw_url}"
+
     params = endpoint.get("params", {})
     columns = endpoint.get("columns")
 
@@ -52,6 +75,20 @@ def do_request(account_name, method):
             results.extend(__filter_columns(batch, columns))
             offset += len(batch)
             if len(batch) < limit:
+                break
+    elif endpoint.get("pagination") == "cursor":
+        cursor_field = endpoint.get("cursor_field", "nextCursor")
+        results = []
+        cursor = None
+        while True:
+            p = {**params, **({"cursor": cursor} if cursor else {})}
+            response = __request(url, params=p)
+            items = response.get("items", []) if isinstance(response, dict) else response
+            if not items:
+                break
+            results.extend(__filter_columns(items, columns))
+            cursor = response.get(cursor_field) if isinstance(response, dict) else None
+            if not cursor:
                 break
     else:
         results = __filter_columns(__request(url, params=params), columns)
