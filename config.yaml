@@ -1,6 +1,7 @@
 
 account_name: aatuu
 data_dir: ./data
+cache_dir: ./cache
 base_url: "https://{account_name}.substack.com"
 timeout: 30
 headers:
