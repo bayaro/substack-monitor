@@ -8,6 +8,15 @@ def load_config(path="config.yaml"):
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
+def __request(url, params=None):
+    response = requests.get(
+        url,
+        params=params,
+        headers={"User-Agent": "Mozilla/5.0"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()
 
 def do_request(account_name, method):
     config = load_config()
@@ -17,37 +26,25 @@ def do_request(account_name, method):
     params = endpoint.get("params", {})
     columns = endpoint.get("columns")
 
+    def filter(items):
+        if columns:
+            return [{col: item.get(col) for col in columns} for item in items]
+        return items
+
     if endpoint.get("pagination") == "offset":
         limit = endpoint.get("limit", 20)
         results = []
         offset = 0
         while True:
-            response = requests.get(
-                url,
-                params={**params, "limit": limit, "offset": offset},
-                headers={"User-Agent": "Mozilla/5.0"},
-                timeout=30,
-            )
-            response.raise_for_status()
-            batch = response.json()
+            batch = __request(url, params={**params, "limit": limit, "offset": offset})
             if not batch:
                 break
-            results.extend(batch)
+            results.extend(filter(batch))
             offset += len(batch)
             if len(batch) < limit:
                 break
     else:
-        response = requests.get(
-            url,
-            params=params,
-            headers={"User-Agent": "Mozilla/5.0"},
-            timeout=30,
-        )
-        response.raise_for_status()
-        results = response.json()
-
-    if columns:
-        results = [{col: item.get(col) for col in columns} for item in results]
+        results = filter(__request(url, params=params))
 
     return results
 
