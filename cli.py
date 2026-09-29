@@ -41,23 +41,24 @@ def __resolve_url(url, deps, data_dir):
     return url.format(**values)
 
 
-def __collect(account, method, data_dir):
-    result = sorted(do_request(account, method, data_dir), key=lambda x: x.get("id", 0), reverse=True)
+def __collect(method):
+    data_dir = Path(CONFIG["data_dir"])
+    data_dir.mkdir(parents=True, exist_ok=True)
+    result = sorted(do_request(method), key=lambda x: x.get("id", 0), reverse=True)
     output = data_dir / f"{method}.yaml"
     with output.open("w", encoding="utf-8") as f:
         yaml.safe_dump(result, f, allow_unicode=True, sort_keys=True, default_flow_style=False)
     print(f"Saved {len(result)} records to {output}")
 
 
-def do_request(account_name, method, data_dir=None):
-    config = load_config()
-    endpoint = config[method]
-    data_dir = data_dir or Path(config["data_dir"])
+def do_request(method):
+    endpoint = CONFIG[method]
+    account_name = CONFIG["account_name"]
 
     raw_url = endpoint["url"]
     deps = endpoint.get("dependencies", {})
     if deps:
-        url = __resolve_url(raw_url, deps, data_dir)
+        url = __resolve_url(raw_url, deps, Path(CONFIG["data_dir"]))
     else:
         url = f"https://{account_name}.substack.com/{raw_url}"
 
@@ -102,20 +103,19 @@ def main():
     parser.add_argument("-m", "--method", required=True)
     args = parser.parse_args()
 
-    account = args.account or load_config().get("account_name")
-    if not account:
+    if args.account:
+        CONFIG["account_name"] = args.account
+
+    if not CONFIG.get("account_name"):
         parser.error("account required: pass -a or set account_name in config.yaml")
 
-    config = load_config()
-    data_dir = Path(config["data_dir"])
-    data_dir.mkdir(parents=True, exist_ok=True)
-
     if args.method == "all":
-        for method in [k for k, v in config.items() if isinstance(v, dict) and "url" in v]:
-            __collect(account, method, data_dir)
+        for method in [k for k, v in CONFIG.items() if isinstance(v, dict) and "url" in v]:
+            __collect(method)
     else:
-        __collect(account, args.method, data_dir)
+        __collect(args.method)
 
 
 if __name__ == "__main__":
+    CONFIG = load_config()
     main()
