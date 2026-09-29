@@ -13,8 +13,8 @@ def __request(url, params=None):
     response = requests.get(
         url,
         params=params,
-        headers={"User-Agent": "Mozilla/5.0"},
-        timeout=30,
+        headers=CONFIG.get("headers", {}),
+        timeout=CONFIG.get("timeout", 30),
     )
     response.raise_for_status()
     return response.json()
@@ -25,8 +25,9 @@ def __filter_columns(items, columns):
     return items
 
 
-def __resolve_url(url, deps, data_dir):
+def __resolve_deps(deps):
     values = {}
+    data_dir = Path(CONFIG["data_dir"])
     for placeholder, path in deps.items():
         parts = path.split(".")
         source_file = data_dir / f"{parts[0]}.yaml"
@@ -38,7 +39,7 @@ def __resolve_url(url, deps, data_dir):
             else:
                 data = data[part]
         values[placeholder] = data
-    return url.format(**values)
+    return values
 
 
 def __collect(method):
@@ -53,14 +54,13 @@ def __collect(method):
 
 def do_request(method):
     endpoint = CONFIG[method]
-    account_name = CONFIG["account_name"]
 
     raw_url = endpoint["url"]
+    if not raw_url.startswith("http"):
+        raw_url = f"{CONFIG['base_url']}/{raw_url}"
+
     deps = endpoint.get("dependencies", {})
-    if deps:
-        url = __resolve_url(raw_url, deps, Path(CONFIG["data_dir"]))
-    else:
-        url = f"https://{account_name}.substack.com/{raw_url}"
+    url = raw_url.format(**CONFIG, **(__resolve_deps(deps) if deps else {}))
 
     params = endpoint.get("params", {})
     columns = endpoint.get("columns")
@@ -79,12 +79,13 @@ def do_request(method):
                 break
     elif endpoint.get("pagination") == "cursor":
         cursor_field = endpoint.get("cursor_field", "nextCursor")
+        items_field = endpoint.get("items_field", "items")
         results = []
         cursor = None
         while True:
             p = {**params, **({"cursor": cursor} if cursor else {})}
             response = __request(url, params=p)
-            items = response.get("items", []) if isinstance(response, dict) else response
+            items = response.get(items_field, []) if isinstance(response, dict) else response
             if not items:
                 break
             results.extend(__filter_columns(items, columns))

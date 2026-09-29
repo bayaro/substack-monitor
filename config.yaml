@@ -1,6 +1,10 @@
 
 account_name: aatuu
 data_dir: ./data
+base_url: "https://{account_name}.substack.com"
+timeout: 30
+headers:
+  User-Agent: "Mozilla/5.0"
 
 posts:
   url: "api/v1/posts"
@@ -35,5 +39,6 @@ notes:
   url: "https://substack.com/api/v1/reader/feed/profile/{user_id}"
   pagination: cursor
   cursor_field: nextCursor
+  items_field: items
   dependencies:
     user_id: users.[0].id
