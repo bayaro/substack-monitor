@@ -19,19 +19,6 @@ def __request(url, params=None):
     response.raise_for_status()
     return response.json()
 
-def __extract(item, columns, prefix=""):
-    record = {}
-    for col in columns:
-        if isinstance(col, str):
-            key = f"{prefix}_{col}" if prefix else col
-            record[key] = item.get(col) if isinstance(item, dict) else None
-        elif isinstance(col, dict):
-            for parent, subkeys in col.items():
-                nested_prefix = f"{prefix}_{parent}" if prefix else parent
-                record.update(__extract(item.get(parent) or {}, subkeys, nested_prefix))
-    return record
-
-
 def __flatten(item, prefix=""):
     record = {}
     for key, value in (item or {}).items():
@@ -43,11 +30,30 @@ def __flatten(item, prefix=""):
     return record
 
 
+def __traverse(item, spec, prefix="", mode="include"):
+    if not isinstance(item, dict):
+        return {}
+    spec_map = {e: None for e in spec if isinstance(e, str)}
+    for e in spec:
+        if isinstance(e, dict):
+            spec_map.update(e)
+    record = {}
+    for key, value in item.items():
+        flat_key = f"{prefix}_{key}" if prefix else key
+        subspec = spec_map.get(key)
+        in_spec = key in spec_map
+        if subspec:
+            record.update(__traverse(value or {}, subspec, flat_key, mode))
+        elif (mode == "include") == in_spec:
+            record.update(__flatten(value, flat_key) if isinstance(value, dict) else {flat_key: value})
+    return record
+
+
 def __filter_columns(items, include=None, exclude=None):
     if exclude:
-        return [{k: v for k, v in __flatten(item).items() if k not in exclude} for item in items]
+        return [__traverse(item, exclude, mode="exclude") for item in items]
     if include:
-        return [__extract(item, include) for item in items]
+        return [__traverse(item, include) for item in items]
     return [__flatten(item) for item in items]
 
 
