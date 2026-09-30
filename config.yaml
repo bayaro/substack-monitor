@@ -12,7 +12,7 @@ posts:
   pagination: offset
   limit: 20
   sort_key: id
-  columns:
+  include:
     - id
     - post_date
     - updated_at
@@ -37,6 +37,12 @@ users:
   sort_key: id
   params:
     public: true
+  include:
+    - id
+    - handle
+    - name
+    - bio
+    - photo_url
 
 notes:
   url: "https://substack.com/api/v1/reader/feed/profile/{user_id}"
@@ -46,3 +52,23 @@ notes:
   sort_key: entity_key
   dependencies:
     user_id: users.[0].id
+  include:
+    - entity_key
+    - context:
+        - source
+        - timestamp
+        - type
+        - page_rank
+    - post:
+        - id
+        - post_date
+        - title
+        - truncated_body_text
+        - reaction_count
+        - restacks
+        - comment_count
+        - child_comment_count
+        - audience
+        - type
+        - wordcount
+        - canonical_url

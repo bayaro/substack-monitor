@@ -43,10 +43,12 @@ def __flatten(item, prefix=""):
     return record
 
 
-def __filter_columns(items, columns):
-    if not columns:
-        return [__flatten(item) for item in items]
-    return [__extract(item, columns) for item in items]
+def __filter_columns(items, include=None, exclude=None):
+    if exclude:
+        return [{k: v for k, v in __flatten(item).items() if k not in exclude} for item in items]
+    if include:
+        return [__extract(item, include) for item in items]
+    return [__flatten(item) for item in items]
 
 
 def __resolve_deps(deps):
@@ -68,7 +70,8 @@ def __resolve_deps(deps):
 
 def __fetch(method):
     endpoint = CONFIG[method]
-    columns = endpoint.get("columns")
+    include = endpoint.get("include")
+    exclude = endpoint.get("exclude")
 
     raw_url = endpoint["url"]
     if not raw_url.startswith("http"):
@@ -88,7 +91,7 @@ def __fetch(method):
         if cache_f:
             for item in batch:
                 cache_f.write(yaml.safe_dump([item], allow_unicode=True, sort_keys=False, default_flow_style=False))
-        return __filter_columns(batch, columns)
+        return __filter_columns(batch, include, exclude)
 
     try:
         if endpoint.get("pagination") == "offset":
@@ -128,14 +131,15 @@ def __fetch(method):
 
 
 def do_request(method):
-    columns = CONFIG[method].get("columns")
+    if CONFIG.get("cache") != "read":
+        return __fetch(method)
 
-    if CONFIG.get("cache") == "read":
-        cache_file = Path(CONFIG["cache_dir"]) / f"{method}.yaml"
-        with cache_file.open("r", encoding="utf-8") as f:
-            return __filter_columns(yaml.safe_load(f), columns)
-
-    return __fetch(method)
+    endpoint = CONFIG[method]
+    include = endpoint.get("include")
+    exclude = endpoint.get("exclude")
+    cache_file = Path(CONFIG["cache_dir"]) / f"{method}.yaml"
+    with cache_file.open("r", encoding="utf-8") as f:
+        return __filter_columns(yaml.safe_load(f), include, exclude)
 
 
 def __collect(method):
