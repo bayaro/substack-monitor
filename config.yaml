@@ -9,11 +9,30 @@ timeout: 30
 headers:
   User-Agent: "Mozilla/5.0"
 
+subscribers:
+  url: "api/v1/subscriber-stats"
+  method: post
+  pagination: offset
+  limit: 50
+  items_field: subscribers
+  sort_key: subscription_created_at
+  use_cookie: true
+  body:
+    filters:
+      order_by_desc_nulls_last: subscription_created_at
+    includeTags: true
+  exclude:
+    - user_photo_url
+
 posts:
   url: "api/v1/posts"
   pagination: offset
   limit: 20
   sort_key: id
+  exclude:
+    - body_html
+    - publishedBylines
+    - truncated_body_text
   _include:
     - id
     - post_date
@@ -46,25 +65,6 @@ users:
     - bio
     - photo_url
 
-subscribers:
-  url: "api/v1/subscriber-stats"
-  method: post
-  pagination: offset
-  limit: 50
-  items_field: subscribers
-  sort_key: subscription_created_at
-  use_cookie: true
-  body:
-    filters:
-      order_by_desc_nulls_last: subscription_created_at
-    includeTags: true
-  include:
-    - id
-    - email
-    - name
-    - subscription_type
-    - subscription_created_at
-
 notes:
   url: "https://substack.com/api/v1/reader/feed/profile/{user_id}"
   pagination: cursor
@@ -76,6 +76,22 @@ notes:
   exclude:
     - context:
       - users
+    - dismissFeedbackOptions
+    - post:
+      - publishedBylines
+    - publication:
+      - appTheme
+      - contributors
+      - iap_advanced_plans
+      - iap_founding_plan
+      - logoPalette
+      - navigationBarItems
+      - plans
+      - podcastPalette
+      - portalAppTheme
+      - rankingDetailByLanguage
+      - theme
+    - trackingParameters
   _include:
     - entity_key
     - context:
