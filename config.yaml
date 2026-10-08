@@ -2,6 +2,7 @@
 account_name: aatuu
 data_dir: ./data
 cache_dir: ./cache
+cookie_file: ./cookie.txt
 base_url: "https://{account_name}.substack.com"
 timeout: 30
 headers:
@@ -43,6 +44,19 @@ users:
     - name
     - bio
     - photo_url
+
+subscribers:
+  url: "api/v1/subscribers"
+  pagination: offset
+  limit: 100
+  sort_key: id
+  use_cookie: true
+  include:
+    - id
+    - email
+    - name
+    - subscription_type
+    - created_at
 
 notes:
   url: "https://substack.com/api/v1/reader/feed/profile/{user_id}"

@@ -9,11 +9,11 @@ def load_config(path="config.yaml"):
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
-def __request(url, params=None):
+def __request(url, params=None, headers=None):
     response = requests.get(
         url,
         params=params,
-        headers=CONFIG.get("headers", {}),
+        headers={**CONFIG.get("headers", {}), **(headers or {})},
         timeout=CONFIG.get("timeout", 30),
     )
     response.raise_for_status()
@@ -87,6 +87,10 @@ def __fetch(method):
     url = raw_url.format(**CONFIG, **(__resolve_deps(deps) if deps else {}))
     params = endpoint.get("params", {})
 
+    extra_headers = {}
+    if endpoint.get("use_cookie"):
+        extra_headers["Cookie"] = Path(CONFIG["cookie_file"]).read_text(encoding="utf-8").strip()
+
     cache_f = None
     if CONFIG.get("cache") == "write":
         cache_dir = Path(CONFIG["cache_dir"])
@@ -105,7 +109,7 @@ def __fetch(method):
             results = []
             offset = 0
             while True:
-                batch = __request(url, params={**params, "limit": limit, "offset": offset})
+                batch = __request(url, params={**params, "limit": limit, "offset": offset}, headers=extra_headers)
                 if not batch:
                     break
                 results.extend(process(batch))
@@ -119,7 +123,7 @@ def __fetch(method):
             cursor = None
             while True:
                 p = {**params, **({"cursor": cursor} if cursor else {})}
-                response = __request(url, params=p)
+                response = __request(url, params=p, headers=extra_headers)
                 batch = response.get(items_field, []) if isinstance(response, dict) else response
                 if not batch:
                     break
@@ -128,7 +132,7 @@ def __fetch(method):
                 if not cursor:
                     break
         else:
-            results = process(__request(url, params=params))
+            results = process(__request(url, params=params, headers=extra_headers))
     finally:
         if cache_f:
             cache_f.close()
