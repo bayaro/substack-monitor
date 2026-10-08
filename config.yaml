@@ -14,6 +14,10 @@ posts:
   pagination: offset
   limit: 20
   sort_key: id
+  exclude:
+    - body_html
+    - publishedBylines
+    - truncated_body_text
   _include:
     - id
     - post_date
@@ -58,12 +62,8 @@ subscribers:
     filters:
       order_by_desc_nulls_last: subscription_created_at
     includeTags: true
-  include:
-    - id
-    - email
-    - name
-    - subscription_type
-    - subscription_created_at
+  exclude:
+    - user_photo_url
 
 notes:
   url: "https://substack.com/api/v1/reader/feed/profile/{user_id}"
@@ -76,6 +76,9 @@ notes:
   exclude:
     - context:
       - users
+    - post:
+      - publishedBylines
+    - trackingParameters
   _include:
     - entity_key
     - context:
