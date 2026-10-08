@@ -3,6 +3,7 @@ account_name: aatuu
 data_dir: ./data
 cache_dir: ./cache
 cookie_file: ./cookie.txt
+cookie_max_age_days: 1
 base_url: "https://{account_name}.substack.com"
 timeout: 30
 headers:

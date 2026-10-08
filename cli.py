@@ -1,5 +1,6 @@
 import argparse
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 import yaml
 import requests
@@ -74,6 +75,26 @@ def __resolve_deps(deps):
     return values
 
 
+def __ensure_cookie():
+    cookie_path = Path(CONFIG["cookie_file"])
+    max_age_days = CONFIG.get("cookie_max_age_days", 1)
+    needs_refresh = not cookie_path.exists()
+    if not needs_refresh:
+        age = datetime.now(timezone.utc) - datetime.fromtimestamp(cookie_path.stat().st_mtime, tz=timezone.utc)
+        needs_refresh = age.days >= max_age_days
+    if needs_refresh:
+        print(
+            "\nCookie is missing or expired. To get a fresh cookie:\n"
+            "  1. Open your browser and go to substack.com\n"
+            "  2. Open DevTools (F12) → Network tab\n"
+            "  3. Reload the page, click any request to substack.com\n"
+            "  4. In Request Headers, find 'Cookie' and copy its full value\n"
+        )
+        cookie = input("Paste cookie value: ").strip()
+        cookie_path.write_text(cookie, encoding="utf-8")
+        print(f"Saved to {cookie_path}\n")
+
+
 def __fetch(method):
     endpoint = CONFIG[method]
     include = endpoint.get("include")
@@ -89,6 +110,7 @@ def __fetch(method):
 
     extra_headers = {}
     if endpoint.get("use_cookie"):
+        __ensure_cookie()
         extra_headers["Cookie"] = Path(CONFIG["cookie_file"]).read_text(encoding="utf-8").strip()
 
     cache_f = None
