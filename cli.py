@@ -10,10 +10,11 @@ def load_config(path="config.yaml"):
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
-def __request(url, params=None, headers=None):
-    response = requests.get(
+def __request(url, params=None, headers=None, method="get", body=None):
+    response = getattr(requests, method)(
         url,
         params=params,
+        json=body,
         headers={**CONFIG.get("headers", {}), **(headers or {})},
         timeout=CONFIG.get("timeout", 30),
     )
@@ -107,6 +108,8 @@ def __fetch(method):
     deps = endpoint.get("dependencies", {})
     url = raw_url.format(**CONFIG, **(__resolve_deps(deps) if deps else {}))
     params = endpoint.get("params", {})
+    http_method = endpoint.get("method", "get")
+    body = endpoint.get("body", {})
 
     extra_headers = {}
     if endpoint.get("use_cookie"):
@@ -128,10 +131,15 @@ def __fetch(method):
     try:
         if endpoint.get("pagination") == "offset":
             limit = endpoint.get("limit", 20)
+            items_field = endpoint.get("items_field")
             results = []
             offset = 0
             while True:
-                batch = __request(url, params={**params, "limit": limit, "offset": offset}, headers=extra_headers)
+                if http_method == "post":
+                    response = __request(url, body={**body, "limit": limit, "offset": offset}, headers=extra_headers, method=http_method)
+                else:
+                    response = __request(url, params={**params, "limit": limit, "offset": offset}, headers=extra_headers)
+                batch = response.get(items_field, []) if items_field and isinstance(response, dict) else response
                 if not batch:
                     break
                 results.extend(process(batch))

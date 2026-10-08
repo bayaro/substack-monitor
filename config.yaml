@@ -47,17 +47,23 @@ users:
     - photo_url
 
 subscribers:
-  url: "api/v1/subscribers"
+  url: "api/v1/subscriber-stats"
+  method: post
   pagination: offset
-  limit: 100
-  sort_key: id
+  limit: 50
+  items_field: subscribers
+  sort_key: subscription_created_at
   use_cookie: true
+  body:
+    filters:
+      order_by_desc_nulls_last: subscription_created_at
+    includeTags: true
   include:
     - id
     - email
     - name
     - subscription_type
-    - created_at
+    - subscription_created_at
 
 notes:
   url: "https://substack.com/api/v1/reader/feed/profile/{user_id}"
