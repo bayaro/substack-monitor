@@ -16,7 +16,6 @@ subscribers:
   limit: 50
   items_field: subscribers
   sort_key: subscription_created_at
-  use_cookie: true
   body:
     filters:
       order_by_desc_nulls_last: subscription_created_at

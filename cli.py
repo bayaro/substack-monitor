@@ -10,14 +10,38 @@ def load_config(path="config.yaml"):
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
+def __read_cookies():
+    text = Path(CONFIG["cookie_file"]).read_text(encoding="utf-8").strip()
+    cookies = {}
+    for pair in text.split(";"):
+        name, sep, value = pair.strip().partition("=")
+        if sep:
+            cookies[name] = value
+    return cookies
+
+
+def __save_cookies(cookies):
+    Path(CONFIG["cookie_file"]).write_text(
+        "; ".join(f"{k}={v}" for k, v in cookies.items()), encoding="utf-8"
+    )
+
+
 def __request(url, params=None, headers=None, method="get", body=None):
+    cookies = __read_cookies()
     response = getattr(requests, method)(
         url,
         params=params,
         json=body,
-        headers={**CONFIG.get("headers", {}), **(headers or {})},
+        headers={
+            **CONFIG.get("headers", {}),
+            "Cookie": "; ".join(f"{k}={v}" for k, v in cookies.items()),
+            **(headers or {}),
+        },
         timeout=CONFIG.get("timeout", 30),
     )
+    updated = {**cookies, **response.cookies.get_dict()}
+    if updated != cookies:
+        __save_cookies(updated)
     response.raise_for_status()
     return response.json()
 
@@ -111,10 +135,8 @@ def __fetch(method):
     http_method = endpoint.get("method", "get")
     body = endpoint.get("body", {})
 
+    __ensure_cookie()
     extra_headers = {}
-    if endpoint.get("use_cookie"):
-        __ensure_cookie()
-        extra_headers["Cookie"] = Path(CONFIG["cookie_file"]).read_text(encoding="utf-8").strip()
 
     cache_f = None
     if CONFIG.get("cache") == "write":
