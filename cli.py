@@ -66,6 +66,34 @@ def __flatten(item, prefix=""):
     return record
 
 
+def __traverse_list(items, spec, prefix, mode):
+    # spec entries pick list elements by a quoted bracket selector: "[first]", "[last]",
+    # "[0]", "[-2]" or "[*]" for all. Columns: <prefix>_<first|last|index>_<field>
+    record = {}
+    for entry in spec:
+        for selector, subspec in (entry if isinstance(entry, dict) else {entry: None}).items():
+            text = str(selector)
+            if not (text.startswith("[") and text.endswith("]")):
+                raise ValueError(f"list selector must be bracketed, e.g. \"[last]\": {selector!r} under {prefix}")
+            name = text[1:-1]
+            if name == "*":
+                picks = list(range(len(items)))
+            elif name in ("first", "last"):
+                picks = [0 if name == "first" else len(items) - 1] if items else []
+            else:
+                idx = int(name)
+                picks = [idx % len(items)] if items and -len(items) <= idx < len(items) else []
+            for idx in picks:
+                label = name if name in ("first", "last") else idx
+                key = f"{prefix}_{label}"
+                if subspec:
+                    record.update(__traverse(items[idx], subspec, key, mode))
+                else:
+                    value = items[idx]
+                    record.update(__flatten(value, key) if isinstance(value, dict) else {key: value})
+    return record
+
+
 def __traverse(item, spec, prefix="", mode="include"):
     if not isinstance(item, dict):
         return {}
@@ -78,7 +106,9 @@ def __traverse(item, spec, prefix="", mode="include"):
         flat_key = f"{prefix}_{key}" if prefix else key
         subspec = spec_map.get(key)
         in_spec = key in spec_map
-        if subspec:
+        if subspec and mode == "include" and isinstance(value, list):
+            record.update(__traverse_list(value, subspec, flat_key, mode))
+        elif subspec:
             record.update(__traverse(value or {}, subspec, flat_key, mode))
         elif (mode == "include") == in_spec:
             record.update(__flatten(value, flat_key) if isinstance(value, dict) else {flat_key: value})

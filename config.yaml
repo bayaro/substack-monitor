@@ -117,13 +117,53 @@ replies:
   pagination: cursor
   cursor_field: nextCursor
   items_field: items
-  # filter: not set yet - the feed returns a reply, its parent comment and the note;
-  # check the types in cache/replies.yaml and add e.g. "- type: comment"
   sort_key: entity_key
   dependencies:
     user_id: users.[0].id
-  exclude:
+  include:
+    - entity_key
+    - type
     - context:
-      - users
-    - dismissFeedbackOptions
-    - trackingParameters
+        - type
+        - timestamp
+        - source
+    - comment:
+        - id
+        - post_id
+        - ancestor_path
+        - body
+        - date
+        - edited_at
+        - language
+        - reaction_count
+        - reactions
+        - restacks
+        - children_count
+    - parentComments:
+        - "[last]":
+            - id
+            - handle
+            - name
+            - body
+        - "[first]":
+            - id
+            - handle
+            - name
+    - post:
+        - id
+        - title
+        - slug
+        - canonical_url
+        - post_date
+        - audience
+        - type
+        - wordcount
+        - reaction_count
+        - comment_count
+    - publication:
+        - id
+        - name
+        - subdomain
+        - author_id
+        - author_handle
+        - author_name
