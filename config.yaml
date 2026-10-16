@@ -69,6 +69,8 @@ notes:
   pagination: cursor
   cursor_field: nextCursor
   items_field: items
+  filter:
+    - type: post
   sort_key: entity_key
   dependencies:
     user_id: users.[0].id
@@ -111,3 +113,19 @@ notes:
         - type
         - wordcount
         - canonical_url
+
+comments:
+  url: "https://substack.com/api/v1/reader/feed/profile/{user_id}"
+  pagination: cursor
+  cursor_field: nextCursor
+  items_field: items
+  filter:
+    - type: comment
+  sort_key: entity_key
+  dependencies:
+    user_id: users.[0].id
+  exclude:
+    - context:
+      - users
+    - dismissFeedbackOptions
+    - trackingParameters

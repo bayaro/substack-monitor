@@ -83,6 +83,12 @@ def __filter_columns(items, include=None, exclude=None):
     return [__flatten(item) for item in items]
 
 
+def __filter_items(items, endpoint):
+    for condition in endpoint.get("filter") or []:
+        items = [i for i in items if all(i.get(k) == v for k, v in condition.items())]
+    return __filter_columns(items, endpoint.get("include"), endpoint.get("exclude"))
+
+
 def __resolve_deps(deps):
     values = {}
     data_dir = Path(CONFIG["data_dir"])
@@ -122,8 +128,6 @@ def __ensure_cookie():
 
 def __fetch(method):
     endpoint = CONFIG[method]
-    include = endpoint.get("include")
-    exclude = endpoint.get("exclude")
 
     raw_url = endpoint["url"]
     if not raw_url.startswith("http"):
@@ -144,17 +148,18 @@ def __fetch(method):
         cache_dir.mkdir(parents=True, exist_ok=True)
         cache_f = (cache_dir / f"{method}.yaml").open("w", encoding="utf-8")
 
+    results = []
+
     def process(batch):
         if cache_f:
             for item in batch:
                 cache_f.write(yaml.safe_dump([item], allow_unicode=True, sort_keys=False, default_flow_style=False))
-        return __filter_columns(batch, include, exclude)
+        results.extend(__filter_items(batch, endpoint))
 
     try:
         if endpoint.get("pagination") == "offset":
             limit = endpoint.get("limit", 20)
             items_field = endpoint.get("items_field")
-            results = []
             offset = 0
             while True:
                 if http_method == "post":
@@ -164,14 +169,13 @@ def __fetch(method):
                 batch = response.get(items_field, []) if items_field and isinstance(response, dict) else response
                 if not batch:
                     break
-                results.extend(process(batch))
+                process(batch)
                 offset += len(batch)
                 if len(batch) < limit:
                     break
         elif endpoint.get("pagination") == "cursor":
             cursor_field = endpoint.get("cursor_field", "nextCursor")
             items_field = endpoint.get("items_field", "items")
-            results = []
             cursor = None
             while True:
                 p = {**params, **({"cursor": cursor} if cursor else {})}
@@ -179,12 +183,12 @@ def __fetch(method):
                 batch = response.get(items_field, []) if isinstance(response, dict) else response
                 if not batch:
                     break
-                results.extend(process(batch))
+                process(batch)
                 cursor = response.get(cursor_field) if isinstance(response, dict) else None
                 if not cursor:
                     break
         else:
-            results = process(__request(url, params=params, headers=extra_headers))
+            process(__request(url, params=params, headers=extra_headers))
     finally:
         if cache_f:
             cache_f.close()
@@ -196,12 +200,9 @@ def do_request(method):
     if CONFIG.get("cache") != "read":
         return __fetch(method)
 
-    endpoint = CONFIG[method]
-    include = endpoint.get("include")
-    exclude = endpoint.get("exclude")
     cache_file = Path(CONFIG["cache_dir"]) / f"{method}.yaml"
     with cache_file.open("r", encoding="utf-8") as f:
-        return __filter_columns(yaml.safe_load(f), include, exclude)
+        return __filter_items(yaml.safe_load(f), CONFIG[method])
 
 
 def __collect(method):
@@ -215,6 +216,7 @@ def __collect(method):
     with output.open("w", encoding="utf-8") as f:
         yaml.safe_dump(result, f, allow_unicode=True, sort_keys=True, default_flow_style=False)
     print(f"Saved {len(result)} records to {output}")
+
 
 def main():
     parser = argparse.ArgumentParser()
