@@ -135,13 +135,17 @@ replies:
     - parentComments:
         - "[last]":
             - id
+            - user_id
             - handle
             - name
             - body
+            - date
         - "[first]":
             - id
+            - user_id
             - handle
             - name
+            - date
     - post:
         - id
         - title
