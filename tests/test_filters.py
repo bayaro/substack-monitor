@@ -111,6 +111,22 @@ def test_filter_conditions_are_anded(cli):
     assert result == [{"type": "c", "lang": "en"}]
 
 
+def test_null_and_empty_string_values_are_dropped(cli):
+    items = [{"a": 1, "b": None, "c": "", "d": {"e": None, "f": "x"}}]
+    assert cli.__filter_items(items, {}) == [{"a": 1, "d_f": "x"}]
+
+
+def test_zero_false_and_empty_containers_are_kept(cli):
+    items = [{"n": 0, "flag": False, "lst": [], "txt": " "}]
+    assert cli.__filter_items(items, {}) == [{"n": 0, "flag": False, "lst": [], "txt": " "}]
+
+
+def test_empty_values_are_dropped_after_include_and_exclude(cli):
+    items = [{"id": 1, "x": None, "y": None}]
+    assert cli.__filter_items(items, {"include": ["id", "x"]}) == [{"id": 1}]
+    assert cli.__filter_items(items, {"exclude": ["y"]}) == [{"id": 1}]
+
+
 def test_filter_runs_before_column_selection(cli):
     items = [{"type": "c", "id": 1}, {"type": "p", "id": 2}]
     endpoint = {"filter": [{"type": "p"}], "include": ["id"]}

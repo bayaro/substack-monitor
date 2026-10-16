@@ -138,7 +138,8 @@ def __filter_columns(items, include=None, exclude=None):
 def __filter_items(items, endpoint):
     for condition in endpoint.get("filter") or []:
         items = [i for i in items if all(i.get(k) == v for k, v in condition.items())]
-    return __filter_columns(items, endpoint.get("include"), endpoint.get("exclude"))
+    records = __filter_columns(items, endpoint.get("include"), endpoint.get("exclude"))
+    return [{k: v for k, v in record.items() if v is not None and v != ""} for record in records]
 
 
 def __resolve_deps(deps):

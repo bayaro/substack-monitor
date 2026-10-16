@@ -57,14 +57,14 @@ def cursor_handler(chain, server, max_requests=20):
         if len(server.requests) > max_requests:  # a runaway loop fails the test instead of hanging
             return 500, {}, {}
         cursor = req["query"].get("cursor", [None])[0]
-        return 200, {"items": [{"at": cursor}], "nextCursor": chain.get(cursor)}, {}
+        return 200, {"items": [{"at": cursor or "start"}], "nextCursor": chain.get(cursor)}, {}
     return handler
 
 
 def test_cursor_pagination(cli, server):
     server.handler = cursor_handler({None: "c1", "c1": "c2", "c2": None}, server)
     endpoint(cli, server, pagination="cursor")
-    assert [r["at"] for r in cli.__fetch("t")] == [None, "c1", "c2"]
+    assert [r["at"] for r in cli.__fetch("t")] == ["start", "c1", "c2"]
 
 
 def test_cursor_pagination_stops_on_empty_items(cli, server):
