@@ -83,6 +83,7 @@ notes:
       - post_id
       - publication_id
       - reply_minimum_role
+      - translation
       - type
       - user_bestseller_tier
       - user_id
