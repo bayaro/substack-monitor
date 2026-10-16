@@ -1,5 +1,6 @@
 import argparse
 import json
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 import yaml
@@ -28,17 +29,26 @@ def __save_cookies(cookies):
 
 def __request(url, params=None, headers=None, method="get", body=None):
     cookies = __read_cookies()
-    response = getattr(requests, method)(
-        url,
-        params=params,
-        json=body,
-        headers={
-            **CONFIG.get("headers", {}),
-            "Cookie": "; ".join(f"{k}={v}" for k, v in cookies.items()),
-            **(headers or {}),
-        },
-        timeout=CONFIG.get("timeout", 30),
-    )
+    full_url = requests.Request(method, url, params=params).prepare().url
+    suffix = f" body={json.dumps(body)}" if body else ""
+    print(f"{method.upper()} {full_url}{suffix}", end="", flush=True)
+    started = time.perf_counter()
+    try:
+        response = getattr(requests, method)(
+            url,
+            params=params,
+            json=body,
+            headers={
+                **CONFIG.get("headers", {}),
+                "Cookie": "; ".join(f"{k}={v}" for k, v in cookies.items()),
+                **(headers or {}),
+            },
+            timeout=CONFIG.get("timeout", 30),
+        )
+    except Exception as e:
+        print(f" -> {type(e).__name__} in {time.perf_counter() - started:.2f}s")
+        raise
+    print(f" -> {response.status_code} in {time.perf_counter() - started:.2f}s")
     updated = {**cookies, **response.cookies.get_dict()}
     if updated != cookies:
         __save_cookies(updated)
