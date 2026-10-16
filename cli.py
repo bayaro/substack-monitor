@@ -166,6 +166,28 @@ def __ensure_cookie():
         print(f"Saved to {cookie_path}\n")
 
 
+def __ensure_user_id():
+    user_id_path = Path(CONFIG["user_id_file"])
+    if user_id_path.exists():
+        return user_id_path.read_text(encoding="utf-8").strip()
+    users = do_request("users")
+    if not users:
+        raise RuntimeError("users endpoint returned no users, cannot determine user_id")
+    print("\nPublication users:")
+    for user in users:
+        print(f"  {user['id']}  @{user.get('handle')}  {user.get('name')}")
+    by_id = {str(user["id"]): user for user in users}
+    default = str(users[0]["id"]) if len(users) == 1 else None
+    prompt = f"Enter user id to use [{default}]: " if default else "Enter user id to use: "
+    answer = input(prompt).strip() or default
+    while answer not in by_id:
+        answer = input("Unknown id, try again: ").strip() or default
+    chosen = by_id[answer]
+    user_id_path.write_text(str(chosen["id"]), encoding="utf-8")
+    print(f"Saved user_id {chosen['id']} (@{chosen.get('handle')}) to {user_id_path}\n")
+    return str(chosen["id"])
+
+
 def __cache_file(method):
     return Path(CONFIG["cache_dir"]) / f"{method}.yaml"
 
@@ -190,7 +212,10 @@ def __fetch(method):
         raw_url = f"{CONFIG['base_url']}/{raw_url}"
 
     deps = endpoint.get("dependencies", {})
-    url = raw_url.format(**CONFIG, **(__resolve_deps(deps) if deps else {}))
+    values = __resolve_deps(deps) if deps else {}
+    if "{user_id}" in raw_url:
+        values["user_id"] = __ensure_user_id()
+    url = raw_url.format(**CONFIG, **values)
     params = endpoint.get("params", {})
     http_method = endpoint.get("method", "get")
     body = endpoint.get("body", {})
@@ -280,18 +305,15 @@ def __collect(method):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-a", "--account")
     parser.add_argument("-m", "--method", required=True)
     parser.add_argument("--cache", choices=["write", "read", "auto"])
     args = parser.parse_args()
 
-    if args.account:
-        CONFIG["account_name"] = args.account
     if args.cache:
         CONFIG["cache"] = args.cache
 
     if not CONFIG.get("account_name"):
-        parser.error("account required: pass -a or set account_name in config.yaml")
+        parser.error("account_name is not set in config.yaml")
 
     if args.method == "all":
         for method in [k for k, v in CONFIG.items() if isinstance(v, dict) and "url" in v]:
