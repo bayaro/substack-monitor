@@ -109,3 +109,21 @@ notes:
     - post
     - publication
     - trackingParameters
+
+replies:
+  url: "https://substack.com/api/v1/reader/feed/profile/{user_id}"
+  params:
+    types[]: replies
+  pagination: cursor
+  cursor_field: nextCursor
+  items_field: items
+  # filter: not set yet - the feed returns a reply, its parent comment and the note;
+  # check the types in cache/replies.yaml and add e.g. "- type: comment"
+  sort_key: entity_key
+  dependencies:
+    user_id: users.[0].id
+  exclude:
+    - context:
+      - users
+    - dismissFeedbackOptions
+    - trackingParameters
