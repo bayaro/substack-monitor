@@ -27,7 +27,7 @@ def __save_cookies(cookies):
     )
 
 
-def __request(url, params=None, headers=None, method="get", body=None):
+def __request(url, params=None, method="get", body=None):
     cookies = __read_cookies()
     full_url = requests.Request(method, url, params=params).prepare().url
     suffix = f" body={json.dumps(body)}" if body else ""
@@ -41,7 +41,6 @@ def __request(url, params=None, headers=None, method="get", body=None):
             headers={
                 **CONFIG.get("headers", {}),
                 "Cookie": "; ".join(f"{k}={v}" for k, v in cookies.items()),
-                **(headers or {}),
             },
             timeout=CONFIG.get("timeout", 30),
         )
@@ -221,7 +220,6 @@ def __fetch(method):
     body = endpoint.get("body", {})
 
     __ensure_cookie()
-    extra_headers = {}
 
     cache_f = None
     cache_tmp = __cache_file(method).with_suffix(".yaml.tmp")
@@ -245,9 +243,9 @@ def __fetch(method):
             offset = 0
             while True:
                 if http_method == "post":
-                    response = __request(url, body={**body, "limit": limit, "offset": offset}, headers=extra_headers, method=http_method)
+                    response = __request(url, body={**body, "limit": limit, "offset": offset}, method=http_method)
                 else:
-                    response = __request(url, params={**params, "limit": limit, "offset": offset}, headers=extra_headers)
+                    response = __request(url, params={**params, "limit": limit, "offset": offset})
                 batch = response.get(items_field, []) if items_field and isinstance(response, dict) else response
                 if not batch:
                     break
@@ -262,7 +260,7 @@ def __fetch(method):
             seen_cursors = set()
             while True:
                 p = {**params, **({"cursor": cursor} if cursor else {})}
-                response = __request(url, params=p, headers=extra_headers)
+                response = __request(url, params=p)
                 batch = response.get(items_field, []) if isinstance(response, dict) else response
                 if not batch:
                     break
@@ -275,7 +273,7 @@ def __fetch(method):
                     break
                 seen_cursors.add(cursor)
         else:
-            process(__request(url, params=params, headers=extra_headers))
+            process(__request(url, params=params))
     finally:
         if cache_f:
             cache_f.close()
