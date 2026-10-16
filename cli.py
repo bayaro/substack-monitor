@@ -259,6 +259,7 @@ def __fetch(method):
             cursor_field = endpoint.get("cursor_field", "nextCursor")
             items_field = endpoint.get("items_field", "items")
             cursor = None
+            seen_cursors = set()
             while True:
                 p = {**params, **({"cursor": cursor} if cursor else {})}
                 response = __request(url, params=p, headers=extra_headers)
@@ -269,6 +270,10 @@ def __fetch(method):
                 cursor = response.get(cursor_field) if isinstance(response, dict) else None
                 if not cursor:
                     break
+                if cursor in seen_cursors:
+                    print(f"[{method}] cursor repeated, stopping to avoid an endless loop")
+                    break
+                seen_cursors.add(cursor)
         else:
             process(__request(url, params=params, headers=extra_headers))
     finally:

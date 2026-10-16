@@ -73,7 +73,7 @@ notes:
   items_field: items
   filter:
     - type: comment
-  sort_key: entity_key
+  sort_key: comment_date
   exclude:
     - comment:
       - attachments
@@ -116,7 +116,7 @@ replies:
   pagination: cursor
   cursor_field: nextCursor
   items_field: items
-  sort_key: entity_key
+  sort_key: comment_date
   include:
     - entity_key
     - type
