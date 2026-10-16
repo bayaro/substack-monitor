@@ -126,6 +126,22 @@ def __ensure_cookie():
         print(f"Saved to {cookie_path}\n")
 
 
+def __cache_file(method):
+    return Path(CONFIG["cache_dir"]) / f"{method}.yaml"
+
+
+def __cache_mode(method):
+    mode = CONFIG.get("cache")
+    if mode != "auto":
+        return mode
+    cache_file = __cache_file(method)
+    if cache_file.exists():
+        age = datetime.now(timezone.utc) - datetime.fromtimestamp(cache_file.stat().st_mtime, tz=timezone.utc)
+        if age.total_seconds() < CONFIG.get("cache_auto_age_minutes", 10) * 60:
+            return "read"
+    return "write"
+
+
 def __fetch(method):
     endpoint = CONFIG[method]
 
@@ -143,10 +159,10 @@ def __fetch(method):
     extra_headers = {}
 
     cache_f = None
-    if CONFIG.get("cache") == "write":
-        cache_dir = Path(CONFIG["cache_dir"])
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        cache_f = (cache_dir / f"{method}.yaml").open("w", encoding="utf-8")
+    cache_tmp = __cache_file(method).with_suffix(".yaml.tmp")
+    if __cache_mode(method) == "write":
+        cache_tmp.parent.mkdir(parents=True, exist_ok=True)
+        cache_f = cache_tmp.open("w", encoding="utf-8")
 
     results = []
 
@@ -192,16 +208,17 @@ def __fetch(method):
     finally:
         if cache_f:
             cache_f.close()
+    if cache_f:
+        cache_tmp.replace(__cache_file(method))
 
     return results
 
 
 def do_request(method):
-    if CONFIG.get("cache") != "read":
+    if __cache_mode(method) != "read":
         return __fetch(method)
 
-    cache_file = Path(CONFIG["cache_dir"]) / f"{method}.yaml"
-    with cache_file.open("r", encoding="utf-8") as f:
+    with __cache_file(method).open("r", encoding="utf-8") as f:
         return __filter_items(yaml.safe_load(f), CONFIG[method])
 
 
@@ -222,7 +239,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-a", "--account")
     parser.add_argument("-m", "--method", required=True)
-    parser.add_argument("--cache", choices=["write", "read"])
+    parser.add_argument("--cache", choices=["write", "read", "auto"])
     args = parser.parse_args()
 
     if args.account:
