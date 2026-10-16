@@ -163,6 +163,7 @@ def __fetch(method):
     if __cache_mode(method) == "write":
         cache_tmp.parent.mkdir(parents=True, exist_ok=True)
         cache_f = cache_tmp.open("w", encoding="utf-8")
+        print(f"[{method}] fetching from API, writing cache {__cache_file(method)}")
 
     results = []
 
@@ -210,6 +211,7 @@ def __fetch(method):
             cache_f.close()
     if cache_f:
         cache_tmp.replace(__cache_file(method))
+        print(f"[{method}] cache written: {__cache_file(method)}")
 
     return results
 
@@ -218,6 +220,7 @@ def do_request(method):
     if __cache_mode(method) != "read":
         return __fetch(method)
 
+    print(f"[{method}] reading cache {__cache_file(method)}")
     with __cache_file(method).open("r", encoding="utf-8") as f:
         return __filter_items(yaml.safe_load(f), CONFIG[method])
 
