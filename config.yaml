@@ -94,26 +94,6 @@ notes:
       - rankingDetailByLanguage
       - theme
     - trackingParameters
-  _include:
-    - entity_key
-    - context:
-        - source
-        - timestamp
-        - type
-        - page_rank
-    - post:
-        - id
-        - post_date
-        - title
-        - truncated_body_text
-        - reaction_count
-        - restacks
-        - comment_count
-        - child_comment_count
-        - audience
-        - type
-        - wordcount
-        - canonical_url
 
 comments:
   url: "https://substack.com/api/v1/reader/feed/profile/{user_id}"
@@ -126,6 +106,9 @@ comments:
   dependencies:
     user_id: users.[0].id
   exclude:
+    - comment:
+      - attachments
+      - body_json
     - context:
       - users
     - dismissFeedbackOptions
