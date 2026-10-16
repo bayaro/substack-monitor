@@ -156,7 +156,7 @@ def __ensure_cookie():
         print(
             "\nCookie is missing or expired. To get a fresh cookie:\n"
             "  1. Open your browser and go to substack.com\n"
-            "  2. Open DevTools (F12) → Network tab\n"
+            "  2. Open DevTools (F12) > Network tab\n"
             "  3. Reload the page, click any request to substack.com\n"
             "  4. In Request Headers, find 'Cookie' and copy its full value\n"
         )
