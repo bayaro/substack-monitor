@@ -65,6 +65,10 @@ def __flatten(item, prefix=""):
     return record
 
 
+def __is_selector(key):
+    return isinstance(key, str) and key.startswith("[") and key.endswith("]")
+
+
 def __traverse_list(items, spec, prefix, mode):
     # spec entries pick list elements by a quoted bracket selector: "[first]", "[last]",
     # "[0]", "[-2]" or "[*]" for all. Columns: <prefix>_<first|last|index>_<field>
@@ -100,6 +104,11 @@ def __traverse(item, spec, prefix="", mode="include"):
     for e in spec:
         if isinstance(e, dict):
             spec_map.update(e)
+    where = prefix or "<root>"
+    for key in spec_map:
+        if __is_selector(key):
+            reason = "list selectors are only supported in include" if mode == "exclude" else "value is not a list"
+            raise ValueError(f"list selector {key!r} under {where}: {reason}")
     record = {}
     for key, value in item.items():
         flat_key = f"{prefix}_{key}" if prefix else key
@@ -107,6 +116,10 @@ def __traverse(item, spec, prefix="", mode="include"):
         in_spec = key in spec_map
         if subspec and mode == "include" and isinstance(value, list):
             record.update(__traverse_list(value, subspec, flat_key, mode))
+        elif subspec and isinstance(value, list):
+            if any(__is_selector(k) for e in subspec for k in (e if isinstance(e, dict) else {e: None})):
+                raise ValueError(f"list selectors are only supported in include (under {flat_key!r})")
+            raise ValueError(f"exclude cannot look inside the list {flat_key!r}; exclude the whole key instead")
         elif subspec:
             record.update(__traverse(value or {}, subspec, flat_key, mode))
         elif (mode == "include") == in_spec:

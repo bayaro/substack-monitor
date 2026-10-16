@@ -67,6 +67,35 @@ def test_list_selector_must_be_bracketed(cli, thread):
         cli.__traverse(thread, [{"parents": [{"last": ["id"]}]}])
 
 
+def test_list_selector_on_a_dict_value_is_an_error(cli):
+    with pytest.raises(ValueError, match=r"'\[last\]' under post: value is not a list"):
+        cli.__traverse({"post": {"id": 1}}, [{"post": [{"[last]": ["id"]}]}])
+
+
+def test_list_selector_as_a_string_on_a_dict_value_is_an_error(cli):
+    with pytest.raises(ValueError, match="not a list"):
+        cli.__traverse({"post": {"id": 1}}, [{"post": ["[last]"]}])
+
+
+def test_list_selector_in_exclude_is_an_error(cli, thread):
+    with pytest.raises(ValueError, match="only supported in include"):
+        cli.__traverse(thread, [{"parents": [{"[last]": ["id"]}]}], mode="exclude")
+
+
+def test_exclude_inside_a_list_is_an_error(cli, thread):
+    with pytest.raises(ValueError, match="exclude cannot look inside the list 'parents'"):
+        cli.__traverse(thread, [{"parents": ["id"]}], mode="exclude")
+
+
+def test_exclude_whole_list_key_still_works(cli, thread):
+    assert cli.__traverse({**thread, "keep": 1}, ["parents"], mode="exclude") == {"keep": 1}
+
+
+def test_absent_keys_in_spec_are_skipped_silently(cli):
+    assert cli.__traverse({"a": 1}, ["a", "missing", {"nope": ["x"]}]) == {"a": 1}
+    assert cli.__traverse({"a": 1, "b": 2}, ["missing", {"nope": ["x"]}], mode="exclude") == {"a": 1, "b": 2}
+
+
 def test_plain_key_named_last_is_not_a_selector(cli):
     assert cli.__traverse({"last": 7, "x": 1}, ["last"]) == {"last": 7}
 
