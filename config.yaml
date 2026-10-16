@@ -71,36 +71,6 @@ notes:
   cursor_field: nextCursor
   items_field: items
   filter:
-    - type: post
-  sort_key: entity_key
-  dependencies:
-    user_id: users.[0].id
-  exclude:
-    - context:
-      - users
-    - dismissFeedbackOptions
-    - post:
-      - publishedBylines
-    - publication:
-      - appTheme
-      - contributors
-      - iap_advanced_plans
-      - iap_founding_plan
-      - logoPalette
-      - navigationBarItems
-      - plans
-      - podcastPalette
-      - portalAppTheme
-      - rankingDetailByLanguage
-      - theme
-    - trackingParameters
-
-comments:
-  url: "https://substack.com/api/v1/reader/feed/profile/{user_id}"
-  pagination: cursor
-  cursor_field: nextCursor
-  items_field: items
-  filter:
     - type: comment
   sort_key: entity_key
   dependencies:
@@ -109,7 +79,33 @@ comments:
     - comment:
       - attachments
       - body_json
+      - ancestor_path
+      - autotranslate_to
+      - handle
+      - is_ai_detection_disabled
+      - media_clip_id
+      - name
+      - photo_url
+      - post_id
+      - publication_id
+      - reply_minimum_role
+      - type
+      - user_bestseller_tier
+      - user_id
+      - user_primary_publication
+      - userStatus
     - context:
+      - fallbackReason
+      - fallbackUrl
+      - isFresh
+      - page
       - users
+    - canReply
+    - canShowCommentReveal
+    - canShowFollowUpsell
     - dismissFeedbackOptions
+    - isMuted
+    - parentComments
+    - post
+    - publication
     - trackingParameters
