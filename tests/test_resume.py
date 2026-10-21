@@ -22,7 +22,7 @@ class Flaky:
 
 
 @pytest.fixture
-def feed(env,server):
+def feed(env, server):
     config.CONFIG.cache = "write"
     config.CONFIG.endpoints["t"] = {"url": f"{server.url}/x", "pagination": "cursor"}
     server.handler = Flaky(fail_at="c2")
@@ -33,7 +33,7 @@ def cursors(server):
     return [r["query"].get("cursor", [None])[0] for r in server.requests]
 
 
-def test_failure_keeps_the_partial_cache_and_says_how_to_continue(env,feed, capsys):
+def test_failure_keeps_the_partial_cache_and_says_how_to_continue(env, feed, capsys):
     with pytest.raises(requests.HTTPError):
         fetch.fetch("t")
     assert fetch.__cache_file("t").with_suffix(".yaml.tmp").exists()
@@ -42,7 +42,7 @@ def test_failure_keeps_the_partial_cache_and_says_how_to_continue(env,feed, caps
     assert "run again to continue" in capsys.readouterr().out
 
 
-def test_resume_continues_from_the_saved_cursor(env,feed):
+def test_resume_continues_from_the_saved_cursor(env, feed):
     with pytest.raises(requests.HTTPError):
         fetch.fetch("t")
     feed.requests.clear()
@@ -54,7 +54,7 @@ def test_resume_continues_from_the_saved_cursor(env,feed):
     assert not fetch.__cache_file("t").with_suffix(".yaml.tmp").exists()
 
 
-def test_force_starts_the_download_over(env,feed):
+def test_force_starts_the_download_over(env, feed):
     with pytest.raises(requests.HTTPError):
         fetch.fetch("t")
     feed.requests.clear()
@@ -65,13 +65,13 @@ def test_force_starts_the_download_over(env,feed):
     assert not fetch.__progress_file("t").exists()
 
 
-def test_a_normal_run_without_a_partial_one_starts_from_scratch(env,feed):
+def test_a_normal_run_without_a_partial_one_starts_from_scratch(env, feed):
     feed.handler = Flaky(fail_at="never")
     assert len(fetch.fetch("t")) == 3
     assert cursors(feed) == [None, "c1", "c2"]
 
 
-def test_partial_download_is_continued_even_when_no_cache_mode_is_given(env,feed):
+def test_partial_download_is_continued_even_when_no_cache_mode_is_given(env, feed):
     with pytest.raises(requests.HTTPError):
         fetch.fetch("t")
     config.CONFIG.cache = None
@@ -80,7 +80,7 @@ def test_partial_download_is_continued_even_when_no_cache_mode_is_given(env,feed
     assert fetch.__cache_file("t").exists()
 
 
-def test_partial_download_is_continued_in_auto_mode_even_with_a_fresh_cache(env,feed):
+def test_partial_download_is_continued_in_auto_mode_even_with_a_fresh_cache(env, feed):
     with pytest.raises(requests.HTTPError):
         fetch.fetch("t")
     fetch.__cache_file("t").write_text("- at: old\n", encoding="utf-8")  # fresh by age
@@ -91,7 +91,7 @@ def test_partial_download_is_continued_in_auto_mode_even_with_a_fresh_cache(env,
     assert cursors(feed) == ["c2"]
 
 
-def test_read_mode_never_continues_a_download(env,feed):
+def test_read_mode_never_continues_a_download(env, feed):
     with pytest.raises(requests.HTTPError):
         fetch.fetch("t")
     fetch.__cache_file("t").write_text("- at: old\n", encoding="utf-8")
@@ -101,7 +101,7 @@ def test_read_mode_never_continues_a_download(env,feed):
     assert feed.requests == []
 
 
-def test_data_written_after_the_last_saved_batch_is_dropped_on_resume(env,feed):
+def test_data_written_after_the_last_saved_batch_is_dropped_on_resume(env, feed):
     with pytest.raises(requests.HTTPError):
         fetch.fetch("t")
     with fetch.__cache_file("t").with_suffix(".yaml.tmp").open("a", encoding="utf-8") as f:
@@ -110,7 +110,7 @@ def test_data_written_after_the_last_saved_batch_is_dropped_on_resume(env,feed):
     assert [r["at"] for r in fetch.fetch("t")] == ["start", "c1", "c2"]
 
 
-def test_offset_pagination_resumes_from_the_saved_offset(env,server):
+def test_offset_pagination_resumes_from_the_saved_offset(env, server):
     data = list(range(5))
     calls = {"n": 0}
 
