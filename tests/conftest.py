@@ -1,4 +1,3 @@
-import importlib.util
 import json
 import sys
 import threading
@@ -9,18 +8,15 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))  # cli.py imports config.py from the project root
+sys.path.insert(0, str(ROOT))  # the modules live in the project root
 
 import config  # noqa: E402  (needs the path above)
 import request  # noqa: E402
 
 
 @pytest.fixture
-def cli(tmp_path):
-    """cli.py loaded as a module; config.CONFIG is reset to a minimal config pointing into tmp_path."""
-    spec = importlib.util.spec_from_file_location("cli_under_test", ROOT / "cli.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+def env(tmp_path):
+    """A clean environment: config.CONFIG is reset to a minimal config pointing into tmp_path."""
     cookie = tmp_path / "cookie.txt"
     cookie.write_text("sid=abc", encoding="utf-8")
     request.RATE.update(delay=None, last=None)  # request.py is shared between tests, reset its state
@@ -37,7 +33,6 @@ def cli(tmp_path):
         "timeout": 5,
         "headers": {},
     })
-    return module
 
 
 class FakeServer:
