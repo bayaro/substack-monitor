@@ -10,6 +10,7 @@ GLOBAL_KEYS = {
     "data_dir": "./data",
     "cache_dir": "./cache",
     "cache_auto_age_minutes": 10,
+    "resume_max_age_minutes": 180,
     "cookie_file": "./cookie.txt",
     "user_id_file": "./user_id.txt",
     "timeout": 30,

@@ -1,3 +1,6 @@
+import os
+import time
+
 import pytest
 import requests
 import yaml
@@ -130,3 +133,42 @@ def test_offset_pagination_resumes_from_the_saved_offset(env, server):
     calls["healed"] = True
     assert [r["v"] for r in fetch.fetch("t")] == [0, 1, 2, 3, 4]
     assert [r["query"]["offset"] for r in server.requests] == [["4"]]
+
+
+def interrupt_and_age(feed, minutes):
+    """Fail the download of "t", let the server heal and make the partial download `minutes` old."""
+    with pytest.raises(requests.HTTPError):
+        fetch.fetch("t")
+    feed.requests.clear()
+    feed.handler = Flaky(fail_at="never")
+    past = time.time() - minutes * 60
+    os.utime(fetch.__progress_file("t"), (past, past))
+
+
+def test_partial_download_within_the_age_limit_is_continued(env, feed):
+    interrupt_and_age(feed, 120)
+    assert len(fetch.fetch("t")) == 3
+    assert cursors(feed) == ["c2"]
+
+
+def test_older_partial_download_is_not_continued(env, feed, capsys):
+    interrupt_and_age(feed, 240)
+    assert len(fetch.fetch("t")) == 3
+    assert cursors(feed) == [None, "c1", "c2"]
+    assert "interrupted download is 240 min old (limit 180 min), starting over" in capsys.readouterr().out
+    assert not fetch.__progress_file("t").exists()
+
+
+def test_age_limit_is_configurable(env, feed):
+    config.CONFIG.resume_max_age_minutes = 360
+    interrupt_and_age(feed, 240)
+    assert len(fetch.fetch("t")) == 3
+    assert cursors(feed) == ["c2"]
+
+
+def test_older_partial_download_does_not_hide_a_fresh_cache(env, feed):
+    interrupt_and_age(feed, 240)
+    fetch.__cache_file("t").write_text("- at: cached\n", encoding="utf-8")
+    config.CONFIG.cache = "auto"
+    assert [r["at"] for r in fetch.do_request("t")] == ["cached"]
+    assert feed.requests == []

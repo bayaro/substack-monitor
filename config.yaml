@@ -3,6 +3,7 @@ account_name: aatuu
 data_dir: ./data
 cache_dir: ./cache
 cache_auto_age_minutes: 30
+resume_max_age_minutes: 180
 cookie_file: ./cookie.txt
 user_id_file: ./user_id.txt
 rate_limit_state_file: ./rate_delay.txt

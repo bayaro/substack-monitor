@@ -23,7 +23,8 @@ python -m pytest -q                     # tests
 | `--force` | do not continue an interrupted download |
 
 An interrupted download (error, 429 retries used up, Ctrl+C) keeps its partial cache and the next
-run continues from the saved cursor/offset.
+run continues from the saved cursor/offset, unless the download is older than
+`resume_max_age_minutes` (180), in which case it starts over.
 
 Every run ends with a summary line, also after a failure:
 `Summary: 12 requests, 1 rate limited, waited 3.0s, delay now 2.8s, took 9.4s`.
