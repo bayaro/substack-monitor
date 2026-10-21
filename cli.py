@@ -27,7 +27,7 @@ def __save_cookies(cookies):
     )
 
 
-def __request(url, params=None, method="get", body=None):
+def __request(url, params=None, method="get", body=None, retry=True):
     cookies = __read_cookies()
     full_url = requests.Request(method, url, params=params).prepare().url
     suffix = f" body={json.dumps(body)}" if body else ""
@@ -51,6 +51,10 @@ def __request(url, params=None, method="get", body=None):
     updated = {**cookies, **response.cookies.get_dict()}
     if updated != cookies:
         __save_cookies(updated)
+    if response.status_code in (401, 403) and retry:
+        print("Cookie was rejected by the server.")
+        __prompt_cookie()
+        return __request(url, params, method, body, retry=False)
     response.raise_for_status()
     return response.json()
 
@@ -170,24 +174,23 @@ def __resolve_deps(deps):
     return values
 
 
+def __prompt_cookie():
+    print(
+        "\nTo get a fresh cookie:\n"
+        "  1. Open your browser and go to substack.com\n"
+        "  2. Open DevTools (F12) > Network tab\n"
+        "  3. Reload the page, click any request to substack.com\n"
+        "  4. In Request Headers, find 'Cookie' and copy its full value\n"
+    )
+    cookie = input("Paste cookie value: ").strip()
+    Path(CONFIG["cookie_file"]).write_text(cookie, encoding="utf-8")
+    print(f"Saved to {CONFIG['cookie_file']}\n")
+
+
 def __ensure_cookie():
-    cookie_path = Path(CONFIG["cookie_file"])
-    max_age_days = CONFIG.get("cookie_max_age_days", 1)
-    needs_refresh = not cookie_path.exists()
-    if not needs_refresh:
-        age = datetime.now(timezone.utc) - datetime.fromtimestamp(cookie_path.stat().st_mtime, tz=timezone.utc)
-        needs_refresh = age.days >= max_age_days
-    if needs_refresh:
-        print(
-            "\nCookie is missing or expired. To get a fresh cookie:\n"
-            "  1. Open your browser and go to substack.com\n"
-            "  2. Open DevTools (F12) > Network tab\n"
-            "  3. Reload the page, click any request to substack.com\n"
-            "  4. In Request Headers, find 'Cookie' and copy its full value\n"
-        )
-        cookie = input("Paste cookie value: ").strip()
-        cookie_path.write_text(cookie, encoding="utf-8")
-        print(f"Saved to {cookie_path}\n")
+    if not Path(CONFIG["cookie_file"]).exists():
+        print("Cookie file is missing.")
+        __prompt_cookie()
 
 
 def __ensure_user_id():

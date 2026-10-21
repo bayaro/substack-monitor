@@ -25,7 +25,6 @@ def cli(tmp_path):
         "cache_dir": str(tmp_path / "cache"),
         "cache_auto_age_minutes": 10,
         "cookie_file": str(cookie),
-        "cookie_max_age_days": 1,
         "user_id_file": str(tmp_path / "user_id.txt"),
         "timeout": 5,
         "headers": {},
