@@ -27,7 +27,40 @@ def __save_cookies(cookies):
     )
 
 
-def __request(url, params=None, method="get", body=None, retry=True):
+RATE = {"delay": None}  # seconds to wait before every request; loaded lazily from rate_limit_state_file
+
+
+def __delay():
+    if RATE["delay"] is None:
+        try:
+            RATE["delay"] = max(0.0, float(Path(CONFIG.get("rate_limit_state_file", "./rate_delay.txt")).read_text().strip()))
+        except (OSError, ValueError):
+            RATE["delay"] = 0.0
+    return RATE["delay"]
+
+
+def __set_delay(value):
+    if value < 0.1:
+        value = 0.0
+    if value != __delay():
+        RATE["delay"] = value
+        Path(CONFIG.get("rate_limit_state_file", "./rate_delay.txt")).write_text(f"{value:.3f}", encoding="utf-8")
+
+
+def __slow_down(response, attempt):
+    delay = max(__delay() * 2, CONFIG.get("rate_limit_delay_seconds", 3))
+    try:
+        delay = max(delay, float(response.headers.get("Retry-After", 0)))
+    except ValueError:
+        pass
+    delay = min(delay, CONFIG.get("rate_limit_max_delay_seconds", 60))
+    __set_delay(delay)
+    print(f"Rate limited, waiting {delay:.1f}s before every request (retry {attempt + 1}/{CONFIG.get('rate_limit_retries', 5)})")
+
+
+def __request(url, params=None, method="get", body=None, retry=True, attempt=0):
+    if __delay():
+        time.sleep(__delay())
     cookies = __read_cookies()
     full_url = requests.Request(method, url, params=params).prepare().url
     suffix = f" body={json.dumps(body)}" if body else ""
@@ -51,11 +84,15 @@ def __request(url, params=None, method="get", body=None, retry=True):
     updated = {**cookies, **response.cookies.get_dict()}
     if updated != cookies:
         __save_cookies(updated)
+    if response.status_code == 429 and attempt < CONFIG.get("rate_limit_retries", 5):
+        __slow_down(response, attempt)
+        return __request(url, params, method, body, retry, attempt + 1)
     if response.status_code in (401, 403) and retry:
         print("Cookie was rejected by the server.")
         __prompt_cookie()
-        return __request(url, params, method, body, retry=False)
+        return __request(url, params, method, body, retry=False, attempt=attempt)
     response.raise_for_status()
+    __set_delay(__delay() * (1 - CONFIG.get("rate_limit_decay", 0.05)))
     return response.json()
 
 def __flatten(item, prefix=""):

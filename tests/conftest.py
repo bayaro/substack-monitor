@@ -26,6 +26,7 @@ def cli(tmp_path):
         "cache_auto_age_minutes": 10,
         "cookie_file": str(cookie),
         "user_id_file": str(tmp_path / "user_id.txt"),
+        "rate_limit_state_file": str(tmp_path / "rate_delay.txt"),
         "timeout": 5,
         "headers": {},
     }

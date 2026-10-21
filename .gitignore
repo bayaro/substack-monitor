@@ -3,3 +3,4 @@ data/
 cache/
 cookie.txt
 user_id.txt
+rate_delay.txt

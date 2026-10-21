@@ -5,6 +5,11 @@ cache_dir: ./cache
 cache_auto_age_minutes: 10
 cookie_file: ./cookie.txt
 user_id_file: ./user_id.txt
+rate_limit_state_file: ./rate_delay.txt
+rate_limit_delay_seconds: 3
+rate_limit_max_delay_seconds: 60
+rate_limit_retries: 5
+rate_limit_decay: 0.05
 base_url: "https://{account_name}.substack.com"
 timeout: 30
 headers:
