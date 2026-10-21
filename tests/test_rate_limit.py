@@ -5,10 +5,29 @@ import requests
 
 
 @pytest.fixture
-def sleeps(monkeypatch):
-    calls = []
-    monkeypatch.setattr("time.sleep", calls.append)
-    return calls
+def clock(monkeypatch):
+    """Fake time: sleep() advances it instantly and is recorded; tick() simulates processing time."""
+    class Clock:
+        now = 1000.0
+        sleeps = []
+
+        def sleep(self, seconds):
+            self.sleeps.append(seconds)
+            self.now += seconds
+
+        def tick(self, seconds):
+            self.now += seconds
+
+    fake = Clock()
+    fake.sleeps = []
+    monkeypatch.setattr("time.sleep", fake.sleep)
+    monkeypatch.setattr("time.monotonic", lambda: fake.now)
+    return fake
+
+
+@pytest.fixture
+def sleeps(clock):
+    return clock.sleeps
 
 
 @pytest.fixture
@@ -49,8 +68,31 @@ def test_success_decays_the_delay_by_five_percent(cli, server, sleeps):
     cli.__set_delay(10)
     cli.__request(f"{server.url}/x")
     cli.__request(f"{server.url}/x")
-    assert sleeps == [10, pytest.approx(9.5)]
-    assert cli.__delay() == pytest.approx(10 * 0.95 * 0.95)
+    cli.__request(f"{server.url}/x")
+    assert sleeps == [pytest.approx(9.5), pytest.approx(9.025)]
+    assert cli.__delay() == pytest.approx(10 * 0.95 ** 3)
+
+
+def test_first_request_is_not_delayed(cli, server, sleeps):
+    cli.__set_delay(10)
+    cli.__request(f"{server.url}/x")
+    assert sleeps == []
+
+
+def test_processing_time_counts_towards_the_delay(cli, server, clock):
+    cli.__set_delay(10)
+    cli.__request(f"{server.url}/x")  # delay is now 9.5
+    clock.tick(4)
+    cli.__request(f"{server.url}/x")
+    assert clock.sleeps == [pytest.approx(5.5)]
+
+
+def test_no_wait_when_processing_took_longer_than_the_delay(cli, server, clock):
+    cli.__set_delay(10)
+    cli.__request(f"{server.url}/x")
+    clock.tick(60)
+    cli.__request(f"{server.url}/x")
+    assert clock.sleeps == []
 
 
 def test_tiny_delay_snaps_to_zero(cli, server, sleeps):

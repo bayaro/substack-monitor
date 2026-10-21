@@ -27,7 +27,9 @@ def __save_cookies(cookies):
     )
 
 
-RATE = {"delay": None}  # seconds to wait before every request; loaded lazily from rate_limit_state_file
+# delay: minimum gap in seconds between requests, loaded lazily from rate_limit_state_file
+# last: monotonic time the previous response arrived (None before the first request)
+RATE = {"delay": None, "last": None}
 
 
 def __delay():
@@ -59,8 +61,10 @@ def __slow_down(response, attempt):
 
 
 def __request(url, params=None, method="get", body=None, retry=True, attempt=0):
-    if __delay():
-        time.sleep(__delay())
+    if RATE["last"] is not None:  # time spent processing the previous response counts towards the delay
+        wait = __delay() - (time.monotonic() - RATE["last"])
+        if wait > 0:
+            time.sleep(wait)
     cookies = __read_cookies()
     full_url = requests.Request(method, url, params=params).prepare().url
     suffix = f" body={json.dumps(body)}" if body else ""
@@ -78,8 +82,10 @@ def __request(url, params=None, method="get", body=None, retry=True, attempt=0):
             timeout=CONFIG.get("timeout", 30),
         )
     except Exception as e:
+        RATE["last"] = time.monotonic()
         print(f" -> {type(e).__name__} in {time.perf_counter() - started:.2f}s")
         raise
+    RATE["last"] = time.monotonic()
     print(f" -> {response.status_code} in {time.perf_counter() - started:.2f}s")
     updated = {**cookies, **response.cookies.get_dict()}
     if updated != cookies:
