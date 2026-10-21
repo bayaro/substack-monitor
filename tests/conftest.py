@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))  # cli.py imports config.py from the project root
 
 import config  # noqa: E402  (needs the path above)
+import request  # noqa: E402
 
 
 @pytest.fixture
@@ -22,6 +23,7 @@ def cli(tmp_path):
     spec.loader.exec_module(module)
     cookie = tmp_path / "cookie.txt"
     cookie.write_text("sid=abc", encoding="utf-8")
+    request.RATE.update(delay=None, last=None)  # request.py is shared between tests, reset its state
     config.CONFIG.clear()
     config.CONFIG.update({
         "account_name": "acc",
