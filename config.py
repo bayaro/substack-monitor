@@ -13,9 +13,15 @@ ENDPOINT_KEYS = {
 }
 
 
+# the active configuration, filled by load_config() and read by every module as config.CONFIG
+CONFIG = {}
+
+
 def load_config(path="config.yaml"):
     with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        CONFIG.clear()
+        CONFIG.update(yaml.safe_load(f))
+    return CONFIG
 
 
 def __unknown_key(key, known, where):

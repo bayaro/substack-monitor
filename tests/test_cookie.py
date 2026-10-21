@@ -4,10 +4,12 @@ from pathlib import Path
 
 import pytest
 
+import config
+
 
 @pytest.fixture
 def cookie_file(cli):
-    return Path(cli.CONFIG["cookie_file"])
+    return Path(config.CONFIG["cookie_file"])
 
 
 def age_file(path, seconds):

@@ -10,7 +10,7 @@ import config
 
 
 def __read_cookies():
-    text = Path(CONFIG["cookie_file"]).read_text(encoding="utf-8").strip()
+    text = Path(config.CONFIG["cookie_file"]).read_text(encoding="utf-8").strip()
     cookies = {}
     for pair in text.split(";"):
         name, sep, value = pair.strip().partition("=")
@@ -20,7 +20,7 @@ def __read_cookies():
 
 
 def __save_cookies(cookies):
-    Path(CONFIG["cookie_file"]).write_text(
+    Path(config.CONFIG["cookie_file"]).write_text(
         "; ".join(f"{k}={v}" for k, v in cookies.items()), encoding="utf-8"
     )
 
@@ -33,7 +33,7 @@ RATE = {"delay": None, "last": None}
 def __delay():
     if RATE["delay"] is None:
         try:
-            RATE["delay"] = max(0.0, float(Path(CONFIG.get("rate_limit_state_file", "./rate_delay.txt")).read_text().strip()))
+            RATE["delay"] = max(0.0, float(Path(config.CONFIG.get("rate_limit_state_file", "./rate_delay.txt")).read_text().strip()))
         except (OSError, ValueError):
             RATE["delay"] = 0.0
     return RATE["delay"]
@@ -44,18 +44,18 @@ def __set_delay(value):
         value = 0.0
     if value != __delay():
         RATE["delay"] = value
-        Path(CONFIG.get("rate_limit_state_file", "./rate_delay.txt")).write_text(f"{value:.3f}", encoding="utf-8")
+        Path(config.CONFIG.get("rate_limit_state_file", "./rate_delay.txt")).write_text(f"{value:.3f}", encoding="utf-8")
 
 
 def __slow_down(response, attempt):
-    delay = max(__delay() * 2, CONFIG.get("rate_limit_delay_seconds", 3))
+    delay = max(__delay() * 2, config.CONFIG.get("rate_limit_delay_seconds", 3))
     try:
         delay = max(delay, float(response.headers.get("Retry-After", 0)))
     except ValueError:
         pass
-    delay = min(delay, CONFIG.get("rate_limit_max_delay_seconds", 60))
+    delay = min(delay, config.CONFIG.get("rate_limit_max_delay_seconds", 60))
     __set_delay(delay)
-    print(f"Rate limited, waiting {delay:.1f}s before every request (retry {attempt + 1}/{CONFIG.get('rate_limit_retries', 5)})")
+    print(f"Rate limited, waiting {delay:.1f}s before every request (retry {attempt + 1}/{config.CONFIG.get('rate_limit_retries', 5)})")
 
 
 def __request(url, params=None, method="get", body=None, retry=True, attempt=0):
@@ -74,10 +74,10 @@ def __request(url, params=None, method="get", body=None, retry=True, attempt=0):
             params=params,
             json=body,
             headers={
-                **CONFIG.get("headers", {}),
+                **config.CONFIG.get("headers", {}),
                 "Cookie": "; ".join(f"{k}={v}" for k, v in cookies.items()),
             },
-            timeout=CONFIG.get("timeout", 30),
+            timeout=config.CONFIG.get("timeout", 30),
         )
     except Exception as e:
         RATE["last"] = time.monotonic()
@@ -88,7 +88,7 @@ def __request(url, params=None, method="get", body=None, retry=True, attempt=0):
     updated = {**cookies, **response.cookies.get_dict()}
     if updated != cookies:
         __save_cookies(updated)
-    if response.status_code == 429 and attempt < CONFIG.get("rate_limit_retries", 5):
+    if response.status_code == 429 and attempt < config.CONFIG.get("rate_limit_retries", 5):
         __slow_down(response, attempt)
         return __request(url, params, method, body, retry, attempt + 1)
     if response.status_code in (401, 403) and retry:
@@ -96,7 +96,7 @@ def __request(url, params=None, method="get", body=None, retry=True, attempt=0):
         __prompt_cookie()
         return __request(url, params, method, body, retry=False, attempt=attempt)
     response.raise_for_status()
-    __set_delay(__delay() * (1 - CONFIG.get("rate_limit_decay", 0.05)))
+    __set_delay(__delay() * (1 - config.CONFIG.get("rate_limit_decay", 0.05)))
     return response.json()
 
 def __flatten(item, prefix=""):
@@ -207,18 +207,18 @@ def __prompt_cookie():
         "  4. In Request Headers, find 'Cookie' and copy its full value\n"
     )
     cookie = input("Paste cookie value: ").strip()
-    Path(CONFIG["cookie_file"]).write_text(cookie, encoding="utf-8")
-    print(f"Saved to {CONFIG['cookie_file']}\n")
+    Path(config.CONFIG["cookie_file"]).write_text(cookie, encoding="utf-8")
+    print(f"Saved to {config.CONFIG['cookie_file']}\n")
 
 
 def __ensure_cookie():
-    if not Path(CONFIG["cookie_file"]).exists():
+    if not Path(config.CONFIG["cookie_file"]).exists():
         print("Cookie file is missing.")
         __prompt_cookie()
 
 
 def __ensure_user_id():
-    user_id_path = Path(CONFIG["user_id_file"])
+    user_id_path = Path(config.CONFIG["user_id_file"])
     if user_id_path.exists():
         return user_id_path.read_text(encoding="utf-8").strip()
     users = do_request("users")
@@ -240,7 +240,7 @@ def __ensure_user_id():
 
 
 def __cache_file(method):
-    return Path(CONFIG["cache_dir"]) / f"{method}.yaml"
+    return Path(config.CONFIG["cache_dir"]) / f"{method}.yaml"
 
 
 def __progress_file(method):
@@ -249,30 +249,30 @@ def __progress_file(method):
 
 
 def __cache_mode(method):
-    mode = CONFIG.get("cache")
-    if mode != "read" and not CONFIG.get("force") and __progress_file(method).exists():
+    mode = config.CONFIG.get("cache")
+    if mode != "read" and not config.CONFIG.get("force") and __progress_file(method).exists():
         return "write"  # an interrupted download is continued, whatever the cache age
     if mode != "auto":
         return mode
     cache_file = __cache_file(method)
     if cache_file.exists():
         age = datetime.now(timezone.utc) - datetime.fromtimestamp(cache_file.stat().st_mtime, tz=timezone.utc)
-        if age.total_seconds() < CONFIG.get("cache_auto_age_minutes", 10) * 60:
+        if age.total_seconds() < config.CONFIG.get("cache_auto_age_minutes", 10) * 60:
             return "read"
     return "write"
 
 
 def __fetch(method):
-    endpoint = CONFIG[method]
+    endpoint = config.CONFIG[method]
 
     raw_url = endpoint["url"]
     if not raw_url.startswith("http"):
-        raw_url = f"{CONFIG['base_url']}/{raw_url}"
+        raw_url = f"{config.CONFIG['base_url']}/{raw_url}"
 
     values = {}
     if "{user_id}" in raw_url:
         values["user_id"] = __ensure_user_id()
-    url = raw_url.format(**CONFIG, **values)
+    url = raw_url.format(**config.CONFIG,**values)
     params = endpoint.get("params", {})
     http_method = endpoint.get("method", "get")
     body = endpoint.get("body", {})
@@ -286,7 +286,7 @@ def __fetch(method):
     state = {}
     if __cache_mode(method) == "write":
         cache_tmp.parent.mkdir(parents=True, exist_ok=True)
-        if not CONFIG.get("force") and progress_file.exists() and cache_tmp.exists():
+        if not config.CONFIG.get("force") and progress_file.exists() and cache_tmp.exists():
             state = yaml.safe_load(progress_file.read_text(encoding="utf-8"))
             with cache_tmp.open("r+b") as f:  # drop anything written after the last saved batch
                 f.truncate(state["size"])
@@ -371,13 +371,13 @@ def do_request(method):
 
     print(f"[{method}] reading cache {__cache_file(method)}")
     with __cache_file(method).open("r", encoding="utf-8") as f:
-        return __filter_items(yaml.safe_load(f), CONFIG[method])
+        return __filter_items(yaml.safe_load(f), config.CONFIG[method])
 
 
 def __collect(method):
-    data_dir = Path(CONFIG["data_dir"])
+    data_dir = Path(config.CONFIG["data_dir"])
     data_dir.mkdir(parents=True, exist_ok=True)
-    sort_key = CONFIG[method].get("sort_key")
+    sort_key = config.CONFIG[method].get("sort_key")
     result = do_request(method)
     if sort_key:
         result = sorted(result, key=lambda x: x.get(sort_key), reverse=True)
@@ -397,23 +397,23 @@ def main():
                         help="do not continue an interrupted download, start it over")
     args = parser.parse_args()
 
-    errors = config.validate_config(CONFIG)
+    errors = config.validate_config(config.CONFIG)
     if errors:
         parser.error("invalid config.yaml:\n  " + "\n  ".join(errors))
 
-    CONFIG["cache"] = args.cache
-    CONFIG["force"] = args.force
+    config.CONFIG["cache"] = args.cache
+    config.CONFIG["force"] = args.force
 
-    if not CONFIG.get("account_name"):
+    if not config.CONFIG.get("account_name"):
         parser.error("account_name is not set in config.yaml")
 
     if args.method == "all":
-        for method in [k for k, v in CONFIG.items() if isinstance(v, dict) and "url" in v]:
+        for method in [k for k, v in config.CONFIG.items() if isinstance(v, dict) and "url" in v]:
             __collect(method)
     else:
         __collect(args.method)
 
 
 if __name__ == "__main__":
-    CONFIG = config.load_config()
+    config.load_config()
     main()

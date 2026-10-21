@@ -11,16 +11,19 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))  # cli.py imports config.py from the project root
 
+import config  # noqa: E402  (needs the path above)
+
 
 @pytest.fixture
 def cli(tmp_path):
-    """cli.py loaded as a module with a minimal CONFIG pointing into tmp_path."""
+    """cli.py loaded as a module; config.CONFIG is reset to a minimal config pointing into tmp_path."""
     spec = importlib.util.spec_from_file_location("cli_under_test", ROOT / "cli.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     cookie = tmp_path / "cookie.txt"
     cookie.write_text("sid=abc", encoding="utf-8")
-    module.CONFIG = {
+    config.CONFIG.clear()
+    config.CONFIG.update({
         "account_name": "acc",
         "base_url": "",
         "data_dir": str(tmp_path / "data"),
@@ -31,7 +34,7 @@ def cli(tmp_path):
         "rate_limit_state_file": str(tmp_path / "rate_delay.txt"),
         "timeout": 5,
         "headers": {},
-    }
+    })
     return module
 
 
