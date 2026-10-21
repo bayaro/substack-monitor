@@ -1,5 +1,7 @@
+import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 import cli
@@ -40,6 +42,16 @@ def test_collect_creates_data_dir_and_keeps_unicode(env):
     cli.__collect("t")
     raw = (Path(config.CONFIG.data_dir) / "t.yaml").read_text(encoding="utf-8")
     assert "Дякую ❤" in raw
+
+
+def test_main_prints_a_summary_even_when_the_run_fails(env, monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["cli.py", "-m", "t", "--cache", "read"])
+    monkeypatch.setattr(config, "load_config", lambda: None)
+    config.CONFIG.endpoints["t"] = {"url": "x"}
+    with pytest.raises(FileNotFoundError):  # no cache written for "t"
+        cli.main()
+    out = capsys.readouterr().out
+    assert "Summary: 0 requests, 0 rate limited, waited 0.0s, delay now 0.0s, took " in out
 
 
 def test_collect_end_to_end_with_server(env, server):

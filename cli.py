@@ -1,9 +1,11 @@
 import argparse
+import time
 from pathlib import Path
 import yaml
 
 import config
 import fetch
+import request
 
 
 def __collect(method):
@@ -37,11 +39,15 @@ def main():
     config.CONFIG.cache = args.cache
     config.CONFIG.force = args.force
 
-    if args.method == "all":
-        for method in config.CONFIG.endpoints:
-            __collect(method)
-    else:
-        __collect(args.method)
+    started = time.perf_counter()
+    try:
+        if args.method == "all":
+            for method in config.CONFIG.endpoints:
+                __collect(method)
+        else:
+            __collect(args.method)
+    finally:
+        print(f"Summary: {request.summary()}, took {time.perf_counter() - started:.1f}s")
 
 
 if __name__ == "__main__":

@@ -150,3 +150,14 @@ def test_other_errors_do_not_change_the_delay(env, server, sleeps):
     with pytest.raises(requests.HTTPError):
         request.request(f"{server.url}/x")
     assert request.__delay() == 0
+
+
+def test_summary_counts_requests_rate_limits_and_waiting(env, server, sleeps):
+    server.handler = limited(2)
+    request.request(f"{server.url}/x")
+    assert request.STATS == {"requests": 3, "rate_limited": 2, "waited": pytest.approx(9)}
+    assert request.summary().startswith("3 requests, 2 rate limited, waited 9.0s, delay now ")
+
+
+def test_summary_without_requests(env):
+    assert request.summary() == "0 requests, 0 rate limited, waited 0.0s, delay now 0.0s"

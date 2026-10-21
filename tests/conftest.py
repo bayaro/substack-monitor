@@ -20,6 +20,7 @@ def env(tmp_path):
     cookie = tmp_path / "cookie.txt"
     cookie.write_text("sid=abc", encoding="utf-8")
     request.RATE.update(delay=None, last=None)  # request.py is shared between tests, reset its state
+    request.STATS.update(requests=0, rate_limited=0, waited=0.0)
     config.CONFIG.reset()
     config.CONFIG.account_name = "acc"
     config.CONFIG.base_url = ""

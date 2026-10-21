@@ -46,6 +46,9 @@ def ensure_cookie():
 # last: monotonic time the previous response arrived (None before the first request)
 RATE = {"delay": None, "last": None}
 
+# counters for summary(): requests sent, 429 answers, seconds slept for the rate limit
+STATS = {"requests": 0, "rate_limited": 0, "waited": 0.0}
+
 
 def __delay():
     if RATE["delay"] is None:
@@ -75,11 +78,18 @@ def __slow_down(response, attempt):
     print(f"Rate limited, waiting {delay:.1f}s before every request (retry {attempt + 1}/{config.CONFIG.rate_limit_retries})")
 
 
+def summary():
+    return (f"{STATS['requests']} requests, {STATS['rate_limited']} rate limited, "
+            f"waited {STATS['waited']:.1f}s, delay now {__delay():.1f}s")
+
+
 def request(url, params=None, method="get", body=None, retry=True, attempt=0):
     if RATE["last"] is not None:  # time spent processing the previous response counts towards the delay
         wait = __delay() - (time.monotonic() - RATE["last"])
         if wait > 0:
             time.sleep(wait)
+            STATS["waited"] += wait
+    STATS["requests"] += 1
     cookies = __read_cookies()
     full_url = requests.Request(method, url, params=params).prepare().url
     suffix = f" body={json.dumps(body)}" if body else ""
@@ -105,6 +115,8 @@ def request(url, params=None, method="get", body=None, retry=True, attempt=0):
     updated = {**cookies, **response.cookies.get_dict()}
     if updated != cookies:
         __save_cookies(updated)
+    if response.status_code == 429:
+        STATS["rate_limited"] += 1
     if response.status_code == 429 and attempt < config.CONFIG.rate_limit_retries:
         __slow_down(response, attempt)
         return request(url, params, method, body, retry, attempt + 1)
