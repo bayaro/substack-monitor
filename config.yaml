@@ -25,6 +25,11 @@ subscribers:
   exclude:
     - user_photo_url
 
+followers:
+  url: api/v1/publication/stats/followers/timeseries
+  params:
+    from: 2026-07-23T07:50:10.613Z
+
 posts:
   url: "api/v1/posts"
   pagination: offset
