@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import sys
 import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -8,6 +9,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))  # cli.py imports config.py from the project root
 
 
 @pytest.fixture
