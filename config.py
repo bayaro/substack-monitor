@@ -1,11 +1,24 @@
+import copy
 import difflib
 
 import yaml
 
+# the known global settings and their defaults; None means "no default, must be set in config.yaml"
 GLOBAL_KEYS = {
-    "account_name", "base_url", "data_dir", "cache_dir", "cache_auto_age_minutes", "cookie_file",
-    "user_id_file", "timeout", "headers", "rate_limit_state_file", "rate_limit_delay_seconds",
-    "rate_limit_max_delay_seconds", "rate_limit_retries", "rate_limit_decay",
+    "account_name": None,
+    "base_url": None,
+    "data_dir": "./data",
+    "cache_dir": "./cache",
+    "cache_auto_age_minutes": 10,
+    "cookie_file": "./cookie.txt",
+    "user_id_file": "./user_id.txt",
+    "timeout": 30,
+    "headers": {},
+    "rate_limit_state_file": "./rate_delay.txt",
+    "rate_limit_delay_seconds": 3,
+    "rate_limit_max_delay_seconds": 60,
+    "rate_limit_retries": 5,
+    "rate_limit_decay": 0.05,
 }
 ENDPOINT_KEYS = {
     "url", "method", "params", "body", "pagination", "limit", "items_field", "cursor_field",
@@ -13,15 +26,47 @@ ENDPOINT_KEYS = {
 }
 
 
-# the active configuration, filled by load_config() and read by every module as config.CONFIG
-CONFIG = {}
+class ConfigError(Exception):
+    pass
+
+
+class Config:
+    """The active configuration, read by every module as config.CONFIG.
+
+    Global settings are attributes (config.CONFIG.timeout): the GLOBAL_KEYS defaults overlaid with
+    config.yaml. Endpoint sections are in .endpoints[name]. cache and force come from the command line.
+    """
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        for key, default in GLOBAL_KEYS.items():
+            setattr(self, key, copy.deepcopy(default))
+        self.endpoints = {}
+        self.cache = None
+        self.force = False
+
+    def load(self, raw):
+        self.reset()
+        for name, value in raw.items():
+            if name in GLOBAL_KEYS:
+                setattr(self, name, value)
+            elif isinstance(value, dict) and not str(name).startswith("_"):
+                self.endpoints[name] = value
+
+
+CONFIG = Config()
 
 
 def load_config(path="config.yaml"):
+    """Read and validate config.yaml and fill CONFIG; raises ConfigError listing every problem."""
     with open(path, "r", encoding="utf-8") as f:
-        CONFIG.clear()
-        CONFIG.update(yaml.safe_load(f))
-    return CONFIG
+        raw = yaml.safe_load(f)
+    errors = validate_config(raw)
+    if errors:
+        raise ConfigError("invalid config.yaml:\n  " + "\n  ".join(errors))
+    CONFIG.load(raw)
 
 
 def __unknown_key(key, known, where):
@@ -31,7 +76,8 @@ def __unknown_key(key, known, where):
 
 def validate_config(config):
     # keys starting with "_" are inactive and skipped; returns a list of problems
-    errors = []
+    errors = [f"config: {key} is required" for key, default in GLOBAL_KEYS.items()
+              if default is None and config.get(key) in (None, "")]
     for name, section in config.items():
         if str(name).startswith("_") or name in GLOBAL_KEYS:
             continue

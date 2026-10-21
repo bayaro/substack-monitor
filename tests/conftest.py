@@ -20,19 +20,15 @@ def env(tmp_path):
     cookie = tmp_path / "cookie.txt"
     cookie.write_text("sid=abc", encoding="utf-8")
     request.RATE.update(delay=None, last=None)  # request.py is shared between tests, reset its state
-    config.CONFIG.clear()
-    config.CONFIG.update({
-        "account_name": "acc",
-        "base_url": "",
-        "data_dir": str(tmp_path / "data"),
-        "cache_dir": str(tmp_path / "cache"),
-        "cache_auto_age_minutes": 10,
-        "cookie_file": str(cookie),
-        "user_id_file": str(tmp_path / "user_id.txt"),
-        "rate_limit_state_file": str(tmp_path / "rate_delay.txt"),
-        "timeout": 5,
-        "headers": {},
-    })
+    config.CONFIG.reset()
+    config.CONFIG.account_name = "acc"
+    config.CONFIG.base_url = ""
+    config.CONFIG.data_dir = str(tmp_path / "data")
+    config.CONFIG.cache_dir = str(tmp_path / "cache")
+    config.CONFIG.cookie_file = str(cookie)
+    config.CONFIG.user_id_file = str(tmp_path / "user_id.txt")
+    config.CONFIG.rate_limit_state_file = str(tmp_path / "rate_delay.txt")
+    config.CONFIG.timeout = 5
 
 
 class FakeServer:

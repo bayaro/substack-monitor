@@ -17,7 +17,7 @@ def answers(monkeypatch, *values):
 
 
 def test_saved_user_id_is_used_without_prompt(env,monkeypatch):
-    Path(config.CONFIG["user_id_file"]).write_text("42\n", encoding="utf-8")
+    Path(config.CONFIG.user_id_file).write_text("42\n", encoding="utf-8")
     monkeypatch.setattr(fetch, "do_request",lambda m: pytest.fail("should not fetch users"))
     monkeypatch.setattr("builtins.input", lambda *a: pytest.fail("should not prompt"))
     assert fetch.__ensure_user_id() == "42"
@@ -29,7 +29,7 @@ def test_single_user_is_listed_and_enter_accepts_it(env,monkeypatch, capsys):
     assert fetch.__ensure_user_id() == "1"
     out = capsys.readouterr().out
     assert "1  @alice  Alice" in out
-    assert Path(config.CONFIG["user_id_file"]).read_text(encoding="utf-8") == "1"
+    assert Path(config.CONFIG.user_id_file).read_text(encoding="utf-8") == "1"
 
 
 def test_several_users_require_a_choice(env,monkeypatch, capsys):
@@ -38,7 +38,7 @@ def test_several_users_require_a_choice(env,monkeypatch, capsys):
     assert fetch.__ensure_user_id() == "2"
     out = capsys.readouterr().out
     assert "@alice" in out and "@bob" in out
-    assert Path(config.CONFIG["user_id_file"]).read_text(encoding="utf-8") == "2"
+    assert Path(config.CONFIG.user_id_file).read_text(encoding="utf-8") == "2"
 
 
 def test_empty_answer_is_rejected_when_several_users(env,monkeypatch):
@@ -57,4 +57,4 @@ def test_no_users_raises(env,monkeypatch):
     monkeypatch.setattr(fetch, "do_request",lambda m: [])
     with pytest.raises(RuntimeError, match="no users"):
         fetch.__ensure_user_id()
-    assert not Path(config.CONFIG["user_id_file"]).exists()
+    assert not Path(config.CONFIG.user_id_file).exists()

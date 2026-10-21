@@ -35,7 +35,7 @@ def sleeps(clock):
 
 @pytest.fixture
 def state_file(env):
-    return Path(config.CONFIG["rate_limit_state_file"])
+    return Path(config.CONFIG.rate_limit_state_file)
 
 
 def limited(times, headers=None):
@@ -105,7 +105,7 @@ def test_tiny_delay_snaps_to_zero(env,server, sleeps):
 
 
 def test_delay_is_capped(env,server, sleeps):
-    config.CONFIG["rate_limit_max_delay_seconds"] = 5
+    config.CONFIG.rate_limit_max_delay_seconds = 5
     server.handler = limited(3)
     request.request(f"{server.url}/x")
     assert sleeps == [3, 5, 5]
@@ -124,7 +124,7 @@ def test_garbled_retry_after_is_ignored(env,server, sleeps):
 
 
 def test_gives_up_after_the_retry_limit(env,server, sleeps):
-    config.CONFIG["rate_limit_retries"] = 2
+    config.CONFIG.rate_limit_retries = 2
     server.handler = lambda req: (429, {}, {})
     with pytest.raises(requests.HTTPError):
         request.request(f"{server.url}/x")

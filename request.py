@@ -8,7 +8,7 @@ import config
 
 
 def __read_cookies():
-    text = Path(config.CONFIG["cookie_file"]).read_text(encoding="utf-8").strip()
+    text = Path(config.CONFIG.cookie_file).read_text(encoding="utf-8").strip()
     cookies = {}
     for pair in text.split(";"):
         name, sep, value = pair.strip().partition("=")
@@ -18,7 +18,7 @@ def __read_cookies():
 
 
 def __save_cookies(cookies):
-    Path(config.CONFIG["cookie_file"]).write_text(
+    Path(config.CONFIG.cookie_file).write_text(
         "; ".join(f"{k}={v}" for k, v in cookies.items()), encoding="utf-8"
     )
 
@@ -32,12 +32,12 @@ def __prompt_cookie():
         "  4. In Request Headers, find 'Cookie' and copy its full value\n"
     )
     cookie = input("Paste cookie value: ").strip()
-    Path(config.CONFIG["cookie_file"]).write_text(cookie, encoding="utf-8")
-    print(f"Saved to {config.CONFIG['cookie_file']}\n")
+    Path(config.CONFIG.cookie_file).write_text(cookie, encoding="utf-8")
+    print(f"Saved to {config.CONFIG.cookie_file}\n")
 
 
 def ensure_cookie():
-    if not Path(config.CONFIG["cookie_file"]).exists():
+    if not Path(config.CONFIG.cookie_file).exists():
         print("Cookie file is missing.")
         __prompt_cookie()
 
@@ -50,7 +50,7 @@ RATE = {"delay": None, "last": None}
 def __delay():
     if RATE["delay"] is None:
         try:
-            RATE["delay"] = max(0.0, float(Path(config.CONFIG.get("rate_limit_state_file", "./rate_delay.txt")).read_text().strip()))
+            RATE["delay"] = max(0.0, float(Path(config.CONFIG.rate_limit_state_file).read_text().strip()))
         except (OSError, ValueError):
             RATE["delay"] = 0.0
     return RATE["delay"]
@@ -61,18 +61,18 @@ def __set_delay(value):
         value = 0.0
     if value != __delay():
         RATE["delay"] = value
-        Path(config.CONFIG.get("rate_limit_state_file", "./rate_delay.txt")).write_text(f"{value:.3f}", encoding="utf-8")
+        Path(config.CONFIG.rate_limit_state_file).write_text(f"{value:.3f}", encoding="utf-8")
 
 
 def __slow_down(response, attempt):
-    delay = max(__delay() * 2, config.CONFIG.get("rate_limit_delay_seconds", 3))
+    delay = max(__delay() * 2, config.CONFIG.rate_limit_delay_seconds)
     try:
         delay = max(delay, float(response.headers.get("Retry-After", 0)))
     except ValueError:
         pass
-    delay = min(delay, config.CONFIG.get("rate_limit_max_delay_seconds", 60))
+    delay = min(delay, config.CONFIG.rate_limit_max_delay_seconds)
     __set_delay(delay)
-    print(f"Rate limited, waiting {delay:.1f}s before every request (retry {attempt + 1}/{config.CONFIG.get('rate_limit_retries', 5)})")
+    print(f"Rate limited, waiting {delay:.1f}s before every request (retry {attempt + 1}/{config.CONFIG.rate_limit_retries})")
 
 
 def request(url, params=None, method="get", body=None, retry=True, attempt=0):
@@ -91,10 +91,10 @@ def request(url, params=None, method="get", body=None, retry=True, attempt=0):
             params=params,
             json=body,
             headers={
-                **config.CONFIG.get("headers", {}),
+                **config.CONFIG.headers,
                 "Cookie": "; ".join(f"{k}={v}" for k, v in cookies.items()),
             },
-            timeout=config.CONFIG.get("timeout", 30),
+            timeout=config.CONFIG.timeout,
         )
     except Exception as e:
         RATE["last"] = time.monotonic()
@@ -105,7 +105,7 @@ def request(url, params=None, method="get", body=None, retry=True, attempt=0):
     updated = {**cookies, **response.cookies.get_dict()}
     if updated != cookies:
         __save_cookies(updated)
-    if response.status_code == 429 and attempt < config.CONFIG.get("rate_limit_retries", 5):
+    if response.status_code == 429 and attempt < config.CONFIG.rate_limit_retries:
         __slow_down(response, attempt)
         return request(url, params, method, body, retry, attempt + 1)
     if response.status_code in (401, 403) and retry:
@@ -113,5 +113,5 @@ def request(url, params=None, method="get", body=None, retry=True, attempt=0):
         __prompt_cookie()
         return request(url, params, method, body, retry=False, attempt=attempt)
     response.raise_for_status()
-    __set_delay(__delay() * (1 - config.CONFIG.get("rate_limit_decay", 0.05)))
+    __set_delay(__delay() * (1 - config.CONFIG.rate_limit_decay))
     return response.json()

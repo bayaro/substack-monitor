@@ -10,7 +10,7 @@ import request
 
 @pytest.fixture
 def cookie_file(env):
-    return Path(config.CONFIG["cookie_file"])
+    return Path(config.CONFIG.cookie_file)
 
 
 def age_file(path, seconds):

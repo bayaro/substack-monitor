@@ -3,7 +3,7 @@ import fetch
 
 
 def endpoint(env,server, **kwargs):
-    config.CONFIG["t"] = {"url": f"{server.url}/x", **kwargs}
+    config.CONFIG.endpoints["t"] = {"url": f"{server.url}/x", **kwargs}
 
 
 def test_plain_request(env,server):
@@ -88,15 +88,15 @@ def test_repeated_cursor_stops_the_loop(env,server, capsys):
 
 def test_dependency_user_id_is_substituted_in_url(env,server):
     server.handler = lambda req: (200, [], {})
-    config.CONFIG["t"] = {"url": f"{server.url}/profile/{{user_id}}"}
-    open(config.CONFIG["user_id_file"], "w").write("42")
+    config.CONFIG.endpoints["t"] = {"url": f"{server.url}/profile/{{user_id}}"}
+    open(config.CONFIG.user_id_file, "w").write("42")
     fetch.fetch("t")
     assert server.requests[0]["path"] == "/profile/42"
 
 
 def test_relative_url_uses_base_url(env,server):
-    config.CONFIG["base_url"] = server.url
-    config.CONFIG["t"] = {"url": "api/v1/things"}
+    config.CONFIG.base_url = server.url
+    config.CONFIG.endpoints["t"] = {"url": "api/v1/things"}
     fetch.fetch("t")
     assert server.requests[0]["path"] == "/api/v1/things"
 

@@ -9,7 +9,7 @@ import request
 
 
 def __ensure_user_id():
-    user_id_path = Path(config.CONFIG["user_id_file"])
+    user_id_path = Path(config.CONFIG.user_id_file)
     if user_id_path.exists():
         return user_id_path.read_text(encoding="utf-8").strip()
     users = do_request("users")
@@ -31,7 +31,7 @@ def __ensure_user_id():
 
 
 def __cache_file(method):
-    return Path(config.CONFIG["cache_dir"]) / f"{method}.yaml"
+    return Path(config.CONFIG.cache_dir) / f"{method}.yaml"
 
 
 def __progress_file(method):
@@ -40,30 +40,30 @@ def __progress_file(method):
 
 
 def __cache_mode(method):
-    mode = config.CONFIG.get("cache")
-    if mode != "read" and not config.CONFIG.get("force") and __progress_file(method).exists():
+    mode = config.CONFIG.cache
+    if mode != "read" and not config.CONFIG.force and __progress_file(method).exists():
         return "write"  # an interrupted download is continued, whatever the cache age
     if mode != "auto":
         return mode
     cache_file = __cache_file(method)
     if cache_file.exists():
         age = datetime.now(timezone.utc) - datetime.fromtimestamp(cache_file.stat().st_mtime, tz=timezone.utc)
-        if age.total_seconds() < config.CONFIG.get("cache_auto_age_minutes", 10) * 60:
+        if age.total_seconds() < config.CONFIG.cache_auto_age_minutes * 60:
             return "read"
     return "write"
 
 
 def fetch(method):
-    endpoint = config.CONFIG[method]
+    endpoint = config.CONFIG.endpoints[method]
 
     raw_url = endpoint["url"]
     if not raw_url.startswith("http"):
-        raw_url = f"{config.CONFIG['base_url']}/{raw_url}"
+        raw_url = f"{config.CONFIG.base_url}/{raw_url}"
 
     values = {}
     if "{user_id}" in raw_url:
         values["user_id"] = __ensure_user_id()
-    url = raw_url.format(**config.CONFIG, **values)
+    url = raw_url.format(**vars(config.CONFIG), **values)
     params = endpoint.get("params", {})
     http_method = endpoint.get("method", "get")
     body = endpoint.get("body", {})
@@ -77,7 +77,7 @@ def fetch(method):
     state = {}
     if __cache_mode(method) == "write":
         cache_tmp.parent.mkdir(parents=True, exist_ok=True)
-        if not config.CONFIG.get("force") and progress_file.exists() and cache_tmp.exists():
+        if not config.CONFIG.force and progress_file.exists() and cache_tmp.exists():
             state = yaml.safe_load(progress_file.read_text(encoding="utf-8"))
             with cache_tmp.open("r+b") as f:  # drop anything written after the last saved batch
                 f.truncate(state["size"])
@@ -162,4 +162,4 @@ def do_request(method):
 
     print(f"[{method}] reading cache {__cache_file(method)}")
     with __cache_file(method).open("r", encoding="utf-8") as f:
-        return record.filter_items(yaml.safe_load(f), config.CONFIG[method])
+        return record.filter_items(yaml.safe_load(f), config.CONFIG.endpoints[method])

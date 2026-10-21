@@ -23,8 +23,8 @@ class Flaky:
 
 @pytest.fixture
 def feed(env,server):
-    config.CONFIG["cache"] = "write"
-    config.CONFIG["t"] = {"url": f"{server.url}/x", "pagination": "cursor"}
+    config.CONFIG.cache = "write"
+    config.CONFIG.endpoints["t"] = {"url": f"{server.url}/x", "pagination": "cursor"}
     server.handler = Flaky(fail_at="c2")
     return server
 
@@ -59,7 +59,7 @@ def test_force_starts_the_download_over(env,feed):
         fetch.fetch("t")
     feed.requests.clear()
     feed.handler = Flaky(fail_at="never")
-    config.CONFIG["force"] = True
+    config.CONFIG.force = True
     assert len(fetch.fetch("t")) == 3
     assert cursors(feed) == [None, "c1", "c2"]
     assert not fetch.__progress_file("t").exists()
@@ -74,7 +74,7 @@ def test_a_normal_run_without_a_partial_one_starts_from_scratch(env,feed):
 def test_partial_download_is_continued_even_when_no_cache_mode_is_given(env,feed):
     with pytest.raises(requests.HTTPError):
         fetch.fetch("t")
-    del config.CONFIG["cache"]
+    config.CONFIG.cache = None
     feed.handler = Flaky(fail_at="never")
     assert len(fetch.fetch("t")) == 3
     assert fetch.__cache_file("t").exists()
@@ -84,7 +84,7 @@ def test_partial_download_is_continued_in_auto_mode_even_with_a_fresh_cache(env,
     with pytest.raises(requests.HTTPError):
         fetch.fetch("t")
     fetch.__cache_file("t").write_text("- at: old\n", encoding="utf-8")  # fresh by age
-    config.CONFIG["cache"] = "auto"
+    config.CONFIG.cache = "auto"
     feed.requests.clear()
     feed.handler = Flaky(fail_at="never")
     assert [r["at"] for r in fetch.do_request("t")] == ["start", "c1", "c2"]
@@ -95,7 +95,7 @@ def test_read_mode_never_continues_a_download(env,feed):
     with pytest.raises(requests.HTTPError):
         fetch.fetch("t")
     fetch.__cache_file("t").write_text("- at: old\n", encoding="utf-8")
-    config.CONFIG["cache"] = "read"
+    config.CONFIG.cache = "read"
     feed.requests.clear()
     assert [r["at"] for r in fetch.do_request("t")] == ["old"]
     assert feed.requests == []
@@ -122,8 +122,8 @@ def test_offset_pagination_resumes_from_the_saved_offset(env,server):
         return 200, [{"v": v} for v in data[offset:offset + 2]], {}
 
     server.handler = handler
-    config.CONFIG["cache"] = "write"
-    config.CONFIG["t"] = {"url": f"{server.url}/x", "pagination": "offset", "limit": 2}
+    config.CONFIG.cache = "write"
+    config.CONFIG.endpoints["t"] = {"url": f"{server.url}/x", "pagination": "offset", "limit": 2}
     with pytest.raises(requests.HTTPError):
         fetch.fetch("t")
     server.requests.clear()
