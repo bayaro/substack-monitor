@@ -28,7 +28,12 @@ subscribers:
 followers:
   url: api/v1/publication/stats/followers/timeseries
   params:
-    from: 2026-07-23T07:50:10.613Z
+    from: "2026-07-23T07:50:10.613Z"
+  columns:
+    - date
+    - followers
+  delta: followers
+  sort_key: date
 
 posts:
   url: "api/v1/posts"

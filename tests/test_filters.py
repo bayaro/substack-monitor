@@ -131,3 +131,24 @@ def test_filter_runs_before_column_selection(cli):
     items = [{"type": "c", "id": 1}, {"type": "p", "id": 2}]
     endpoint = {"filter": [{"type": "p"}], "include": ["id"]}
     assert cli.__filter_items(items, endpoint) == [{"id": 2}]
+
+
+def test_columns_name_positional_rows(cli):
+    rows = [["2026/10/20", 5], ["2026/10/21", 7]]
+    assert cli.__filter_items(rows, {"columns": ["date", "followers"]}) == [
+        {"date": "2026/10/20", "followers": 5},
+        {"date": "2026/10/21", "followers": 7},
+    ]
+
+
+def test_delta_is_change_versus_previous_row(cli):
+    rows = [["d1", 5], ["d2", 7], ["d3", 6]]
+    endpoint = {"columns": ["date", "n"], "delta": "n", "sort_key": "date"}
+    assert [r.get("n_delta") for r in cli.__filter_items(rows, endpoint)] == [None, 2, -1]
+
+
+def test_delta_is_computed_in_ascending_order_of_sort_key(cli):
+    rows = [["d3", 6], ["d1", 5], ["d2", 7]]
+    endpoint = {"columns": ["date", "n"], "delta": "n", "sort_key": "date"}
+    result = {r["date"]: r.get("n_delta") for r in cli.__filter_items(rows, endpoint)}
+    assert result == {"d1": None, "d2": 2, "d3": -1}

@@ -136,6 +136,17 @@ def __filter_columns(items, include=None, exclude=None):
 
 
 def __filter_items(items, endpoint):
+    columns = endpoint.get("columns")
+    if columns:  # rows are positional lists, e.g. [date, value]: name them
+        items = [dict(zip(columns, row)) for row in items]
+    delta = endpoint.get("delta")
+    if delta:  # change versus the previous row, in ascending sort_key order
+        items = sorted(items, key=lambda i: i[endpoint["sort_key"]]) if endpoint.get("sort_key") else items
+        previous = None
+        for item in items:
+            value = item.get(delta)
+            item[f"{delta}_delta"] = None if previous is None or value is None else value - previous
+            previous = value
     for condition in endpoint.get("filter") or []:
         items = [i for i in items if all(i.get(k) == v for k, v in condition.items())]
     records = __filter_columns(items, endpoint.get("include"), endpoint.get("exclude"))
