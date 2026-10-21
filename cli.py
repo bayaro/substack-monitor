@@ -250,8 +250,8 @@ def __progress_file(method):
 
 def __cache_mode(method):
     mode = CONFIG.get("cache")
-    if CONFIG.get("resume") and __progress_file(method).exists():
-        return "write"
+    if mode != "read" and not CONFIG.get("force") and __progress_file(method).exists():
+        return "write"  # an interrupted download is continued, whatever the cache age
     if mode != "auto":
         return mode
     cache_file = __cache_file(method)
@@ -286,7 +286,7 @@ def __fetch(method):
     state = {}
     if __cache_mode(method) == "write":
         cache_tmp.parent.mkdir(parents=True, exist_ok=True)
-        if CONFIG.get("resume") and progress_file.exists() and cache_tmp.exists():
+        if not CONFIG.get("force") and progress_file.exists() and cache_tmp.exists():
             state = yaml.safe_load(progress_file.read_text(encoding="utf-8"))
             with cache_tmp.open("r+b") as f:  # drop anything written after the last saved batch
                 f.truncate(state["size"])
@@ -297,8 +297,6 @@ def __fetch(method):
         else:
             progress_file.unlink(missing_ok=True)
             cache_f = cache_tmp.open("w", encoding="utf-8")
-            if CONFIG.get("resume"):
-                print(f"[{method}] nothing to resume, starting from scratch")
         print(f"[{method}] fetching from API, writing cache {__cache_file(method)}")
 
     def process(batch):
@@ -354,7 +352,7 @@ def __fetch(method):
             process(__request(url, params=params))
     except BaseException:
         if cache_f and progress_file.exists():
-            print(f"\n[{method}] interrupted, partial cache kept; run again with --resume to continue")
+            print(f"\n[{method}] interrupted, partial cache kept; run again to continue (--force starts over)")
         raise
     finally:
         if cache_f:
@@ -392,17 +390,19 @@ def __collect(method):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--method", required=True)
-    parser.add_argument("--cache", choices=["write", "read", "auto"])
-    parser.add_argument("--resume", action="store_true", help="continue an interrupted download from its partial cache")
+    parser.add_argument("--cache", choices=["write", "read", "auto"], default="auto",
+                        help="auto: read a fresh cache, otherwise fetch and write it (default); "
+                             "write: always fetch; read: never fetch")
+    parser.add_argument("--force", action="store_true",
+                        help="do not continue an interrupted download, start it over")
     args = parser.parse_args()
 
     errors = config.validate_config(CONFIG)
     if errors:
         parser.error("invalid config.yaml:\n  " + "\n  ".join(errors))
 
-    if args.cache:
-        CONFIG["cache"] = args.cache
-    CONFIG["resume"] = args.resume
+    CONFIG["cache"] = args.cache
+    CONFIG["force"] = args.force
 
     if not CONFIG.get("account_name"):
         parser.error("account_name is not set in config.yaml")
