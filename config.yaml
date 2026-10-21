@@ -68,12 +68,6 @@ users:
   sort_key: id
   params:
     public: true
-  _include:
-    - id
-    - handle
-    - name
-    - bio
-    - photo_url
 
 notes:
   url: "https://substack.com/api/v1/reader/feed/profile/{user_id}"
