@@ -200,23 +200,6 @@ def __filter_items(items, endpoint):
     return [{k: v for k, v in record.items() if v is not None and v != ""} for record in records]
 
 
-def __resolve_deps(deps):
-    values = {}
-    data_dir = Path(CONFIG["data_dir"])
-    for placeholder, path in deps.items():
-        parts = path.split(".")
-        source_file = data_dir / f"{parts[0]}.yaml"
-        with source_file.open("r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-        for part in parts[1:]:
-            if part.startswith("[") and part.endswith("]"):
-                data = data[int(part[1:-1])]
-            else:
-                data = data[part]
-        values[placeholder] = data
-    return values
-
-
 def __prompt_cookie():
     print(
         "\nTo get a fresh cookie:\n"
@@ -281,8 +264,7 @@ def __fetch(method):
     if not raw_url.startswith("http"):
         raw_url = f"{CONFIG['base_url']}/{raw_url}"
 
-    deps = endpoint.get("dependencies", {})
-    values = __resolve_deps(deps) if deps else {}
+    values = {}
     if "{user_id}" in raw_url:
         values["user_id"] = __ensure_user_id()
     url = raw_url.format(**CONFIG, **values)
